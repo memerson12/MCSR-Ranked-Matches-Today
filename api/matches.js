@@ -16,7 +16,17 @@ export default async function handler(req, res) {
       .json({ error: `No matches for ${username} were found` });
   }
 
-  const startDate = timeframe ? parseUptime(timeframe) : null;
+  let startDate = null;
+
+  if (timeframe) {
+    if (timeframe === "[Error: Stream is offline.]") {
+      return res.status(400).json({
+        error: `Stream is offline.`,
+      });
+    } else {
+      startDate = parseUptime(timeframe);
+    }
+  }
 
   if (timeframe && !startDate) {
     return res.status(400).json({
@@ -49,38 +59,40 @@ async function fetchMatchStats(username, userUUID, startDate) {
   let continueChecking = true;
   const baseUrl = `https://mcsrranked.com/api/users/${username}/matches`;
 
-  while (continueChecking) {
-    const url = `${baseUrl}?count=25&page=${page}`;
-    const response = await fetch(url);
-    const data = await response.json();
-    const matches = data["data"];
+  if (startDate) {
+    while (continueChecking) {
+      const url = `${baseUrl}?count=25&page=${page}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      const matches = data["data"];
 
-    if (matches.length === 0) break; // No more matches to fetch
+      if (matches.length === 0) break; // No more matches to fetch
 
-    for (const match of matches) {
-      const matchDate = new Date(parseInt(match["date"]) * 1000);
+      for (const match of matches) {
+        const matchDate = new Date(parseInt(match["date"]) * 1000);
 
-      if (startDate && matchDate < startDate) {
-        continueChecking = false;
-        break; // Stop checking as we've reached matches outside our time range
+        if (startDate && matchDate < startDate) {
+          continueChecking = false;
+          break; // Stop checking as we've reached matches outside our time range
+        }
+
+        totalMatchesCount++;
+        const resultUUID = match.result?.uuid;
+
+        if (resultUUID === userUUID) {
+          wonMatchesCount++;
+        } else if (resultUUID === null) {
+          drawCount++;
+        }
+
+        const eloChange = match.changes.find(
+          (change) => change.uuid === userUUID
+        );
+        if (eloChange) totalEloChange += eloChange.change;
       }
 
-      totalMatchesCount++;
-      const resultUUID = match.result?.uuid;
-
-      if (resultUUID === userUUID) {
-        wonMatchesCount++;
-      } else if (resultUUID === null) {
-        drawCount++;
-      }
-
-      const eloChange = match.changes.find(
-        (change) => change.uuid === userUUID
-      );
-      if (eloChange) totalEloChange += eloChange.change;
+      page++;
     }
-
-    page++;
   }
 
   return {
