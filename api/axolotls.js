@@ -53,5 +53,5 @@ function pickAxolotl(axolotls) {
 export default async function handler(req, res) {
   const axolotl = pickAxolotl(axolotls);
 
-  res.status(200).json({ axolotl });
+  res.status(200).send(axolotl);
 }
