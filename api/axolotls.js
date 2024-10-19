@@ -43,6 +43,11 @@ function pickAxolotl(axolotls) {
       return axolotl.name;
     }
   }
+
+  return {
+    name: "impossibleAxolotl",
+    chance: 0,
+  };
 }
 
 export default async function handler(req, res) {
