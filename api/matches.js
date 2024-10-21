@@ -61,7 +61,7 @@ async function fetchMatchStats(username, userUUID, startDate) {
 
   if (startDate) {
     while (continueChecking) {
-      const url = `${baseUrl}?count=25&page=${page}`;
+      const url = `${baseUrl}?count=25&page=${page}&type=2`;
       const response = await fetch(url);
       const data = await response.json();
       const matches = data["data"];
@@ -71,7 +71,7 @@ async function fetchMatchStats(username, userUUID, startDate) {
       for (const match of matches) {
         const matchDate = new Date(parseInt(match["date"]) * 1000);
 
-        if (startDate && matchDate < startDate) {
+        if (matchDate < startDate) {
           continueChecking = false;
           break; // Stop checking as we've reached matches outside our time range
         }
@@ -145,3 +145,5 @@ async function fetchUserData(username) {
   const data = await response.json();
   return data.status === "success" ? data.data : null;
 }
+
+// r=$(urlfetch $(urlencode $(twitch $(user) '{{uptimeLength}}')))&username=MC_USERNAME); r['error'] ? `${r['error']}` : `$(channel.display_name)'s stats since stream start - Elo: ${r['totalEloChange']} | Record: ${r['wonMatchesCount']} W - ${r['lossMatchesCount']} L - ${r['drawCount']} D`)
