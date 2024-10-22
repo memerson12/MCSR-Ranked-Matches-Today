@@ -34,7 +34,7 @@ const sdk = new opentelemetry.NodeSDK({
 // this enables the API to record telemetry
 sdk.start();
 console.log("Tracing initialized");
-console;
+console.log("Tracing to", exporterOptions.url);
 
 // gracefully shut down the SDK on process exit
 process.on("SIGTERM", () => {
