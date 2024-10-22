@@ -19,10 +19,35 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use((req, res, next) => {
-  trace
-    .getActiveSpan()
-    ?.updateName(`${req.method} ${req.path}`)
-    .setAttribute("httpRoute", req.path);
+  const span = trace.getActiveSpan();
+  if (span) {
+    span.setAttribute("http.method", req.method);
+    span.setAttribute("http.route", req.path);
+
+    const nightbotChannel = req.headers["Nightbot-Channel"];
+    const nightbotSendUser = req.headers["Nightbot-User"];
+
+    const fossabotChannel = req.headers["x-fossabot-channellogin"];
+    const fossabotSendUser = req.headers["x-fossabot-message-userlogin"];
+
+    if (nightbotChannel) {
+      span.setAttribute("twitch.channel", nightbotChannel);
+    } else if (fossabotChannel) {
+      span.setAttribute("twitch.channel", fossabotChannel);
+    } else {
+      span.setAttribute("twitch.channel", "unknown");
+    }
+
+    if (nightbotSendUser) {
+      span.setAttribute("twitch.user", nightbotSendUser);
+    } else if (fossabotSendUser) {
+      span.setAttribute("twitch.user", fossabotSendUser);
+    } else {
+      span.setAttribute("twitch.user", "unknown");
+    }
+  }
+  // ?.updateName(`${req.method} ${req.path}`)
+  // .setAttribute("httpRoute", req.path);
   next();
 });
 
