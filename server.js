@@ -29,6 +29,7 @@ app.use((req, res, next) => {
     span.updateName(`${req.method} ${req.path}`);
     span.setAttribute("http.method", req.method);
     span.setAttribute("http.route", req.path);
+    span.setAttribute("http.headers", req.headers);
 
     const twitchChannel = getChannelFromHeaders(req.headers);
     const senderUsername = getUsernameFromHeaders(req.headers);
