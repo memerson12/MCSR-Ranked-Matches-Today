@@ -63,7 +63,7 @@ router.get("/", (req, res) => {
   const username = getUsernameFromHeaders(req.headers) || "anonymous";
   const channel = getChannelFromHeaders(req.headers) || "anonymous";
   const axolotl = pickAxolotl(axolotls);
-  console.log(username, channel, axolotl);
+
   const stmt = db.prepare(
     "INSERT INTO axolotl_rolls (username, channel, axolotl_name) VALUES (?, ?, ?)"
   );
@@ -83,7 +83,8 @@ router.get("/stats", (req, res) => {
           username,
           COUNT(*) as total_rolls,
           COUNT(DISTINCT axolotl_name) as unique_axolotls,
-          MAX(CASE WHEN axolotl_name IN ('RAREAxolotl', 'SECRETAxolotl') THEN 1 ELSE 0 END) as has_rare,
+          MAX(CASE WHEN axolotl_name IN ('RAREAxolotl') THEN 1 ELSE 0 END) as has_rare,
+          MAX(CASE WHEN axolotl_name IN ('SECRETAxolotl') THEN 1 ELSE 0 END) as has_secret,
           MIN(timestamp) as first_roll,
           MAX(timestamp) as last_roll
         FROM axolotl_rolls 
@@ -97,7 +98,8 @@ router.get("/stats", (req, res) => {
           username,
           COUNT(*) as total_rolls,
           COUNT(DISTINCT axolotl_name) as unique_axolotls,
-          MAX(CASE WHEN axolotl_name IN ('RAREAxolotl', 'SECRETAxolotl') THEN 1 ELSE 0 END) as has_rare,
+          MAX(CASE WHEN axolotl_name IN ('RAREAxolotl') THEN 1 ELSE 0 END) as has_rare,
+          MAX(CASE WHEN axolotl_name IN ('SECRETAxolotl') THEN 1 ELSE 0 END) as has_secret,
           MIN(timestamp) as first_roll,
           MAX(timestamp) as last_roll
         FROM axolotl_rolls 
@@ -152,6 +154,7 @@ router.get("/stats", (req, res) => {
         total_rolls: user.total_rolls,
         unique_axolotls: user.unique_axolotls,
         has_rare: user.has_rare === 1,
+        has_secret: user.has_secret === 1,
         first_roll: user.first_roll,
         last_roll: user.last_roll,
       })),
