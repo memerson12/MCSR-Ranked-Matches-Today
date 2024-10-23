@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const db = new Database(path.join(__dirname, "data.db"));
+const db = new Database(path.join(__dirname, "./db/data.db"));
 db.pragma("journal_mode = WAL");
 
 db.exec(`

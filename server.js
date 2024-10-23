@@ -11,7 +11,7 @@ import { trace } from "@opentelemetry/api";
 import {
   getChannelFromHeaders,
   getUsernameFromHeaders,
-} from "./utils/HeadersParser.js";
+} from "./utils/headers_parser.js";
 
 const tracer = trace.getTracer("mcsr-stats");
 

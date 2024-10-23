@@ -1,9 +1,9 @@
 import express from "express";
-import db from "../db/init.js";
+import db from "../init_db.js";
 import {
   getUsernameFromHeaders,
   getChannelFromHeaders,
-} from "../utils/HeadersParser.js";
+} from "../utils/headers_parser.js";
 
 const router = express.Router();
 
