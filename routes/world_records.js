@@ -1,6 +1,6 @@
 import express from "express";
 import fetch from "node-fetch";
-import "dotenv/config";
+// import "dotenv/config";
 
 const router = express.Router();
 

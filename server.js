@@ -1,4 +1,5 @@
-import "./tracing.cjs";
+import "dotenv/config";
+import "./utils/tracing.cjs";
 
 import express from "express";
 import path from "path";
@@ -7,6 +8,10 @@ import matchesRouter from "./routes/matches.js";
 import axolotlsRouter from "./routes/axolotls.js";
 import worldRecordsRouter from "./routes/world_records.js";
 import { trace } from "@opentelemetry/api";
+import {
+  getChannelFromHeaders,
+  getUsernameFromHeaders,
+} from "./utils/HeadersParser.js";
 
 const tracer = trace.getTracer("mcsr-stats");
 
@@ -25,26 +30,17 @@ app.use((req, res, next) => {
     span.setAttribute("http.method", req.method);
     span.setAttribute("http.route", req.path);
 
-    const nightbotChannel = req.headers["Nightbot-Channel"];
-    const nightbotSendUser = req.headers["Nightbot-User"];
+    const twitchChannel = getChannelFromHeaders(req.headers);
+    const senderUsername = getUsernameFromHeaders(req.headers);
 
-    const fossabotChannel = req.headers["x-fossabot-channellogin"];
-    const fossabotSendUser = req.headers["x-fossabot-message-userlogin"];
-
-    if (nightbotChannel) {
-      span.setAttribute("twitch.channel", nightbotChannel);
-    } else if (fossabotChannel) {
-      span.setAttribute("twitch.channel", fossabotChannel);
+    if (twitchChannel) {
+      span.setAttribute("twitch.channel", twitchChannel);
     }
 
-    if (nightbotSendUser) {
-      span.setAttribute("twitch.user", nightbotSendUser);
-    } else if (fossabotSendUser) {
-      span.setAttribute("twitch.user", fossabotSendUser);
+    if (senderUsername) {
+      span.setAttribute("twitch.user", senderUsername);
     }
   }
-  // ?.updateName(`${req.method} ${req.path}`)
-  // .setAttribute("httpRoute", req.path);
   next();
 });
 
