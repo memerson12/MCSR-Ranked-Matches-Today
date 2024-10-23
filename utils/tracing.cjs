@@ -25,7 +25,7 @@ const sdk = new opentelemetry.NodeSDK({
   instrumentations: [
     getNodeAutoInstrumentations({
       "@opentelemetry/instrumentation-http": {
-        ignoreIncomingPaths: ["/health"],
+        ignoreIncomingPaths: ["/health", "/favicon.ico"],
       },
     }),
   ],
