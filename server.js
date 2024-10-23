@@ -21,6 +21,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use((req, res, next) => {
   const span = trace.getActiveSpan();
   if (span) {
+    span.updateName(`${req.method} ${req.path}`);
     span.setAttribute("http.method", req.method);
     span.setAttribute("http.route", req.path);
 
@@ -34,16 +35,12 @@ app.use((req, res, next) => {
       span.setAttribute("twitch.channel", nightbotChannel);
     } else if (fossabotChannel) {
       span.setAttribute("twitch.channel", fossabotChannel);
-    } else {
-      span.setAttribute("twitch.channel", "unknown");
     }
 
     if (nightbotSendUser) {
       span.setAttribute("twitch.user", nightbotSendUser);
     } else if (fossabotSendUser) {
       span.setAttribute("twitch.user", fossabotSendUser);
-    } else {
-      span.setAttribute("twitch.user", "unknown");
     }
   }
   // ?.updateName(`${req.method} ${req.path}`)
