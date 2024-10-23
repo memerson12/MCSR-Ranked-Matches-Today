@@ -49,6 +49,22 @@ app.use("/api/matches", matchesRouter);
 app.use("/api/axolotls", axolotlsRouter);
 app.use("/api/world_records", worldRecordsRouter);
 
+app.get("/health", (req, res) => {
+  const healthcheck = {
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: Date.now(),
+  };
+
+  try {
+    res.status(200).json(healthcheck);
+  } catch (error) {
+    healthcheck.status = "error";
+    healthcheck.message = error.message;
+    res.status(503).json(healthcheck);
+  }
+});
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
