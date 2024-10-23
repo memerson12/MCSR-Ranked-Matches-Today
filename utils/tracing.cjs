@@ -22,7 +22,13 @@ const exporterOptions = {
 const traceExporter = new OTLPTraceExporter(exporterOptions);
 const sdk = new opentelemetry.NodeSDK({
   traceExporter,
-  instrumentations: [getNodeAutoInstrumentations()],
+  instrumentations: [
+    getNodeAutoInstrumentations({
+      "@opentelemetry/instrumentation-http": {
+        ignoreIncomingPaths: ["/health"],
+      },
+    }),
+  ],
   resource: new Resource({
     // highlight-next-line
     serviceName: "mcsr-stats",
