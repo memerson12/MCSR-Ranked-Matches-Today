@@ -102,7 +102,7 @@ The response will be a JSON object containing the match statistics.
 2. Install dependencies:
    ```sh
    cd MCSR-Ranked-Matches-Today
-   npm install
+   pnpm install
    ```
 
 ## Environment Variables
