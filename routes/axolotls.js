@@ -73,7 +73,8 @@ router.get("/", (req, res) => {
 });
 
 router.get("/stats", (req, res) => {
-  const { username, channel } = req.query;
+  const { rawUsername, channel } = req.query;
+  const username = rawUsername.toLowerCase(); //idk how this will handle non-latin alphabet name monka
 
   // If no username provided, return the leaderboard
   if (!username) {
