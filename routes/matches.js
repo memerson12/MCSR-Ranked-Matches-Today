@@ -1,10 +1,20 @@
 import express from "express";
 import fetch from "node-fetch";
+import {
+  recordMatchesRequest,
+  recordUpstreamRequest,
+} from "../utils/metrics.js";
+import { getChannelFromHeaders } from "../utils/headers_parser.js";
 
 const router = express.Router();
 
 router.get("/", async (req, res) => {
   const { username, timeframe } = req.query;
+  const channel = getChannelFromHeaders(req.headers) || "anonymous";
+
+  res.on("finish", () => {
+    recordMatchesRequest(channel, res.statusCode);
+  });
 
   if (!username) {
     return res.status(400).json({ error: "Username is required" });
@@ -65,7 +75,10 @@ async function fetchMatchStats(username, userUUID, startDate) {
   if (startDate) {
     while (continueChecking) {
       const url = `${baseUrl}?count=25&page=${page}&type=2`;
-      const response = await fetch(url);
+      const response = await recordUpstreamRequest(
+        { upstream: "mcsrranked", operation: "fetch_matches" },
+        () => fetch(url)
+      );
       const data = await response.json();
       const matches = data["data"];
 
@@ -144,7 +157,10 @@ function parseUptime(timeframe) {
 }
 
 async function fetchUserData(username) {
-  const response = await fetch(`https://mcsrranked.com/api/users/${username}`);
+  const response = await recordUpstreamRequest(
+    { upstream: "mcsrranked", operation: "fetch_user" },
+    () => fetch(`https://mcsrranked.com/api/users/${username}`)
+  );
   const data = await response.json();
   return data.status === "success" ? data.data : null;
 }

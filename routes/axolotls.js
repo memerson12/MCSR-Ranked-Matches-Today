@@ -4,6 +4,7 @@ import {
   getUsernameFromHeaders,
   getChannelFromHeaders,
 } from "../utils/headers_parser.js";
+import { recordAxolotlRoll } from "../utils/metrics.js";
 
 const router = express.Router();
 
@@ -68,15 +69,17 @@ router.get("/", (req, res) => {
     "INSERT INTO axolotl_rolls (username, channel, axolotl_name) VALUES (?, ?, ?)"
   );
   stmt.run(username, channel, axolotl);
+  recordAxolotlRoll(channel, axolotl);
 
   res.status(200).send(axolotl);
 });
 
 router.get("/stats", (req, res) => {
   const { username, channel } = req.query;
+  const lowercaseUsername = username ? username.toLowerCase() : null; // idk how this will handle non-latin characters monka
 
   // If no username provided, return the leaderboard
-  if (!username) {
+  if (!lowercaseUsername) {
     const query = channel
       ? `
         SELECT 
@@ -185,16 +188,18 @@ router.get("/stats", (req, res) => {
     `;
 
   const stats = channel
-    ? db.prepare(statsQuery).all(username, channel, username, channel)
-    : db.prepare(statsQuery).all(username, username);
+    ? db
+        .prepare(statsQuery)
+        .all(lowercaseUsername, channel, lowercaseUsername, channel)
+    : db.prepare(statsQuery).all(lowercaseUsername, lowercaseUsername);
 
   const totalRollsQuery = channel
     ? "SELECT COUNT(*) as count FROM axolotl_rolls WHERE username = ? AND channel = ?"
     : "SELECT COUNT(*) as count FROM axolotl_rolls WHERE username = ?";
 
   const totalRolls = channel
-    ? db.prepare(totalRollsQuery).get(username, channel).count
-    : db.prepare(totalRollsQuery).get(username).count;
+    ? db.prepare(totalRollsQuery).get(lowercaseUsername, channel).count
+    : db.prepare(totalRollsQuery).get(lowercaseUsername).count;
 
   const userChannels = db
     .prepare(
@@ -210,10 +215,10 @@ router.get("/stats", (req, res) => {
     ORDER BY rolls DESC
   `
     )
-    .all(username);
+    .all(lowercaseUsername);
 
   res.status(200).json({
-    username,
+    username: lowercaseUsername,
     totalRolls,
     channels: userChannels,
     rolls: stats,

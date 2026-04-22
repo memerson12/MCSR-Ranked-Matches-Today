@@ -18,6 +18,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "node-fetch": "^3.3.1",
-    "nodemon": "^3.1.7"
+    "nodemon": "^3.1.7",
+    "prom-client": "^15.1.3"
   }
 }
