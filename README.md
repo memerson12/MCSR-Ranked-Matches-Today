@@ -1,9 +1,10 @@
 # MCSR Ranked Matches Today
 
-This project provides APIs to fetch Minecraft Speedrun (MCSR) ranked match statistics and world records. It includes two main functionalities:
+This project provides APIs to fetch Minecraft Speedrun (MCSR) ranked match statistics, world records, and Draftout leaderboard data. It includes three main functionalities:
 
 1. **World Records Fetching** (`world_records.js`)
 2. **Match Statistics Fetching** (`matches.js`)
+3. **Draftout Leaderboard Fetching** (`draftout.js`)
 
 ## World Records Fetching
 
@@ -92,6 +93,65 @@ The response will be a JSON object containing the match statistics.
   "seasonPlayedMatches": 310
 }
 ```
+
+## Draftout Leaderboard Fetching
+
+The `draftout.js` route fetches `https://draftoutmc.com/leaderboard`, parses the HTML leaderboard table, and returns JSON. This is temporary until Draftout has a more developed API.
+
+### Endpoints
+
+- `GET /api/draftout/leaderboard`: Returns the parsed Draftout leaderboard.
+- `GET /api/draftout/leaderboard?top=5`: Returns only the first `top` players. `top` must be a positive integer.
+- `GET /api/draftout/elo?username=Feinberg`: Returns one player's leaderboard placement, rank, and Elo.
+
+### Example Leaderboard Response
+
+```json
+[
+  {
+    "placement": 1,
+    "username": "bing_pigs",
+    "rank": "Diamond I",
+    "elo": 1401
+  },
+  {
+    "placement": 2,
+    "username": "Feinberg",
+    "rank": "Amethyst III",
+    "elo": 1358
+  }
+]
+```
+
+### Example Elo Response
+
+```json
+{
+  "placement": 2,
+  "username": "Feinberg",
+  "rank": "Amethyst III",
+  "elo": 1358
+}
+```
+
+If `username` is missing, `/api/draftout/elo` returns `400`. If the player is not found, it returns `404`.
+
+## Metrics
+
+The app exposes Prometheus metrics on the metrics server, which defaults to `http://127.0.0.1:9100/metrics`.
+
+Key app metrics include:
+
+- `mcsr_http_requests_total{method, route, status_code}`
+- `mcsr_http_request_duration_seconds{method, route, status_code}`
+- `mcsr_http_requests_in_flight{method, route}`
+- `mcsr_matches_requests_total{channel, status_code}`
+- `mcsr_axolotl_rolls_total{channel, axolotl_name}`
+- `mcsr_draftout_requests_total{channel, endpoint, status_code}`
+- `mcsr_upstream_requests_total{upstream, operation, status_code}`
+- `mcsr_upstream_request_duration_seconds{upstream, operation, status_code}`
+
+Draftout channel labels are parsed from Fossabot or Nightbot headers when present and fall back to `anonymous`.
 
 ## Installation
 
