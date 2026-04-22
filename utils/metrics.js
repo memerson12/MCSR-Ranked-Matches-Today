@@ -66,6 +66,10 @@ function routeLabelFor(req) {
   if (req.path === "/api/axolotls") return "/api/axolotls";
   if (req.path === "/api/matches") return "/api/matches";
   if (req.path === "/api/world_records") return "/api/world_records";
+  if (req.path === "/api/draftout/leaderboard") {
+    return "/api/draftout/leaderboard";
+  }
+  if (req.path === "/api/draftout/elo") return "/api/draftout/elo";
   return "unmatched";
 }
 
