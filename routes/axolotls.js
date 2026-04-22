@@ -4,6 +4,7 @@ import {
   getUsernameFromHeaders,
   getChannelFromHeaders,
 } from "../utils/headers_parser.js";
+import { recordAxolotlRoll } from "../utils/metrics.js";
 
 const router = express.Router();
 
@@ -68,6 +69,7 @@ router.get("/", (req, res) => {
     "INSERT INTO axolotl_rolls (username, channel, axolotl_name) VALUES (?, ?, ?)"
   );
   stmt.run(username, channel, axolotl);
+  recordAxolotlRoll(channel, axolotl);
 
   res.status(200).send(axolotl);
 });

@@ -2,12 +2,14 @@ import "dotenv/config";
 import "./utils/tracing.cjs";
 
 import express from "express";
+import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import matchesRouter from "./routes/matches.js";
 import axolotlsRouter from "./routes/axolotls.js";
 import worldRecordsRouter from "./routes/world_records.js";
 import { trace } from "@opentelemetry/api";
+import { metricsHttpHandler, metricsMiddleware } from "./utils/metrics.js";
 import {
   getChannelFromHeaders,
   getUsernameFromHeaders,
@@ -20,8 +22,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const METRICS_HOST = process.env.METRICS_HOST || "127.0.0.1";
+const METRICS_PORT = process.env.METRICS_PORT || 9100;
 
 app.use(express.static(path.join(__dirname, "public")));
+app.use(metricsMiddleware);
 
 app.use((req, res, next) => {
   const span = trace.getActiveSpan();
@@ -71,4 +76,8 @@ app.get("/", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+});
+
+http.createServer(metricsHttpHandler).listen(METRICS_PORT, METRICS_HOST, () => {
+  console.log(`Metrics server is running on http://${METRICS_HOST}:${METRICS_PORT}`);
 });

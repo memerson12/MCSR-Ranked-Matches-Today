@@ -1,5 +1,6 @@
 import express from "express";
 import fetch from "node-fetch";
+import { recordUpstreamRequest } from "../utils/metrics.js";
 // import "dotenv/config";
 
 const router = express.Router();
@@ -84,7 +85,10 @@ async function batchGet(spreadsheetId, ranges) {
     url.searchParams.append("ranges", range);
   }
 
-  const res = await fetch(url);
+  const res = await recordUpstreamRequest(
+    { upstream: "google_sheets", operation: "batch_get" },
+    () => fetch(url)
+  );
   return await res.json();
 }
 
