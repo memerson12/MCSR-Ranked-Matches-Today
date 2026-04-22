@@ -45,6 +45,13 @@ const matchesRequestsTotal = new client.Counter({
   registers: [register],
 });
 
+const draftoutRequestsTotal = new client.Counter({
+  name: "mcsr_draftout_requests_total",
+  help: "Total Draftout endpoint requests by channel, endpoint, and response status.",
+  labelNames: ["channel", "endpoint", "status_code"],
+  registers: [register],
+});
+
 const upstreamRequestsTotal = new client.Counter({
   name: "mcsr_upstream_requests_total",
   help: "Total upstream HTTP requests made by the app.",
@@ -133,6 +140,14 @@ export function recordAxolotlRoll(channel, axolotlName) {
 export function recordMatchesRequest(channel, statusCode) {
   matchesRequestsTotal.inc({
     channel: channel || "anonymous",
+    status_code: String(statusCode),
+  });
+}
+
+export function recordDraftoutRequest(channel, endpoint, statusCode) {
+  draftoutRequestsTotal.inc({
+    channel: channel || "anonymous",
+    endpoint,
     status_code: String(statusCode),
   });
 }

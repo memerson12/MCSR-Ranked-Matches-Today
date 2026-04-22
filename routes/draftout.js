@@ -1,11 +1,17 @@
 import express from "express";
 import fetch from "node-fetch";
-import { recordUpstreamRequest } from "../utils/metrics.js";
+import {
+  recordDraftoutRequest,
+  recordUpstreamRequest,
+} from "../utils/metrics.js";
+import { getChannelFromHeaders } from "../utils/headers_parser.js";
 
 const router = express.Router();
 const LEADERBOARD_URL = "https://draftoutmc.com/leaderboard";
 
 router.get("/leaderboard", async (req, res) => {
+  recordDraftoutRequestOnFinish(req, res, "leaderboard");
+
   const top = getSingleQueryValue(req.query.top);
 
   if (req.query.top !== undefined && !isPositiveInteger(top)) {
@@ -23,6 +29,8 @@ router.get("/leaderboard", async (req, res) => {
 });
 
 router.get("/elo", async (req, res) => {
+  recordDraftoutRequestOnFinish(req, res, "elo");
+
   const username = getSingleQueryValue(req.query.username);
 
   if (!username) {
@@ -137,6 +145,14 @@ function getSingleQueryValue(value) {
   }
 
   return typeof value === "string" ? value.trim() : null;
+}
+
+function recordDraftoutRequestOnFinish(req, res, endpoint) {
+  const channel = getChannelFromHeaders(req.headers) || "anonymous";
+
+  res.on("finish", () => {
+    recordDraftoutRequest(channel, endpoint, res.statusCode);
+  });
 }
 
 export default router;
