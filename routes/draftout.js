@@ -14,7 +14,7 @@ router.get("/leaderboard", async (req, res) => {
 
   try {
     const leaderboard = await fetchLeaderboard();
-    const limit = top === undefined ? leaderboard.length : Number(top);
+    const limit = top === null ? leaderboard.length : Number(top);
 
     res.status(200).json(leaderboard.slice(0, limit));
   } catch (error) {
