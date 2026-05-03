@@ -1,7 +1,8 @@
 import express from "express";
 import fetch from "node-fetch";
 import {
-  recordMatchesRequest,
+  getRequestContext,
+  instrumentMatchesRequest,
   recordUpstreamRequest,
 } from "../utils/metrics.js";
 import { getChannelFromHeaders } from "../utils/headers_parser.js";
@@ -11,59 +12,88 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   const { username, timeframe } = req.query;
   const channel = getChannelFromHeaders(req.headers) || "anonymous";
+  const requestContext = getRequestContext(res);
+  const signal = requestContext?.signal;
 
-  res.on("finish", () => {
-    recordMatchesRequest(channel, res.statusCode);
+  requestContext.setStage("before_upstream");
+  requestContext.setLogContext({
+    channel,
+    username: username || null,
+    timeframe: timeframe || null,
   });
+  instrumentMatchesRequest(requestContext, { channel });
 
   if (!username) {
     return res.status(400).json({ error: "Username is required" });
   }
 
-  const userData = await fetchUserData(username);
-  const userUUID = userData?.uuid;
+  try {
+    requestContext.setStage("fetch_user");
+    const userData = await fetchUserData(username, {
+      signal,
+    });
+    const userUUID = userData?.uuid;
 
-  if (!userUUID) {
-    return res
-      .status(404)
-      .json({ error: `No matches for ${username} were found` });
-  }
+    if (!userUUID) {
+      return res
+        .status(404)
+        .json({ error: `No matches for ${username} were found` });
+    }
 
-  let startDate = null;
+    let startDate = null;
 
-  if (timeframe) {
-    if (timeframe === "[Error: Stream is offline.]") {
-      return res.status(400).json({
-        error: `Stream is offline.`,
-      });
-    } else {
+    if (timeframe) {
+      if (timeframe === "[Error: Stream is offline.]") {
+        return res.status(400).json({
+          error: `Stream is offline.`,
+        });
+      }
+
       startDate = parseUptime(timeframe);
     }
-  }
 
-  if (timeframe && !startDate) {
-    return res.status(400).json({
-      error: `Invalid timeframe format. Use '1 hour and 5 minutes' or '1 minute and 23 seconds' (received: ${timeframe})`,
+    if (timeframe && !startDate) {
+      return res.status(400).json({
+        error: `Invalid timeframe format. Use '1 hour and 5 minutes' or '1 minute and 23 seconds' (received: ${timeframe})`,
+      });
+    }
+
+    requestContext.setStage("fetch_matches");
+    const matchStats = await fetchMatchStats(username, userUUID, startDate, {
+      signal,
+      setAbortStage: requestContext.setStage,
     });
+
+    requestContext.setStage("response_write");
+    res.status(200).json({
+      username,
+      timeframe: timeframe || "N/A",
+      startTime: startDate ? startDate.toISOString() : "N/A",
+      ...matchStats,
+      currentElo: userData.eloRate,
+      currentRank: userData.eloRank,
+      seasonWins: userData.statistics.season.wins.ranked,
+      seasonLosses: userData.statistics.season.loses.ranked,
+      seasonPlaytime: parsePlaytime(userData.statistics.season.playtime.ranked),
+      seasonPlayedMatches: userData.statistics.season.playedMatches.ranked,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError" || signal?.aborted) {
+      return;
+    }
+
+    requestContext.log("error", "matches_request_failed", {
+      error: error?.message || String(error),
+    });
+
+    if (!res.headersSent) {
+      res.status(502).json({ error: "Failed to fetch match data" });
+    }
   }
-
-  const matchStats = await fetchMatchStats(username, userUUID, startDate);
-
-  res.status(200).json({
-    username,
-    timeframe: timeframe || "N/A",
-    startTime: startDate ? startDate.toISOString() : "N/A",
-    ...matchStats,
-    currentElo: userData.eloRate,
-    currentRank: userData.eloRank,
-    seasonWins: userData.statistics.season.wins.ranked,
-    seasonLosses: userData.statistics.season.loses.ranked,
-    seasonPlaytime: parsePlaytime(userData.statistics.season.playtime.ranked),
-    seasonPlayedMatches: userData.statistics.season.playedMatches.ranked,
-  });
 });
 
-async function fetchMatchStats(username, userUUID, startDate) {
+async function fetchMatchStats(username, userUUID, startDate, options = {}) {
+  const { signal, setAbortStage } = options;
   let wonMatchesCount = 0;
   let totalMatchesCount = 0;
   let totalEloChange = 0;
@@ -74,10 +104,15 @@ async function fetchMatchStats(username, userUUID, startDate) {
 
   if (startDate) {
     while (continueChecking) {
+      if (signal?.aborted) {
+        throw createAbortError(signal.reason);
+      }
+
       const url = `${baseUrl}?count=25&page=${page}&type=2`;
+      setAbortStage?.("fetch_matches");
       const response = await recordUpstreamRequest(
         { upstream: "mcsrranked", operation: "fetch_matches" },
-        () => fetch(url)
+        () => fetch(url, { signal })
       );
       const data = await response.json();
       const matches = data["data"];
@@ -156,13 +191,20 @@ function parseUptime(timeframe) {
   );
 }
 
-async function fetchUserData(username) {
+async function fetchUserData(username, options = {}) {
+  const { signal } = options;
   const response = await recordUpstreamRequest(
     { upstream: "mcsrranked", operation: "fetch_user" },
-    () => fetch(`https://mcsrranked.com/api/users/${username}`)
+    () => fetch(`https://mcsrranked.com/api/users/${username}`, { signal })
   );
   const data = await response.json();
   return data.status === "success" ? data.data : null;
+}
+
+function createAbortError(reason) {
+  const error = new Error(reason || "aborted");
+  error.name = "AbortError";
+  return error;
 }
 
 export default router;

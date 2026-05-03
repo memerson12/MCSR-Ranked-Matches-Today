@@ -145,7 +145,10 @@ Key app metrics include:
 - `mcsr_http_requests_total{method, route, status_code}`
 - `mcsr_http_request_duration_seconds{method, route, status_code}`
 - `mcsr_http_requests_in_flight{method, route}`
+- `mcsr_http_requests_aborted_total{method, route, abort_stage}`
+- `mcsr_http_request_aborted_duration_seconds{method, route, abort_stage}`
 - `mcsr_matches_requests_total{channel, status_code}`
+- `mcsr_matches_requests_aborted_total{channel, abort_stage}`
 - `mcsr_axolotl_rolls_total{channel, axolotl_name}`
 - `mcsr_draftout_requests_total{channel, endpoint, status_code}`
 - `mcsr_upstream_requests_total{upstream, operation, status_code}`

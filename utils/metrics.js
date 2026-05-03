@@ -1,4 +1,5 @@
 import client from "prom-client";
+import { trace } from "@opentelemetry/api";
 
 const register = new client.Registry();
 
@@ -31,6 +32,21 @@ const httpRequestsInFlight = new client.Gauge({
   registers: [register],
 });
 
+const httpRequestsAbortedTotal = new client.Counter({
+  name: "mcsr_http_requests_aborted_total",
+  help: "Total HTTP requests aborted before a response completed.",
+  labelNames: ["method", "route", "abort_stage"],
+  registers: [register],
+});
+
+const httpRequestAbortedDurationSeconds = new client.Histogram({
+  name: "mcsr_http_request_aborted_duration_seconds",
+  help: "HTTP request duration in seconds before the client disconnected.",
+  labelNames: ["method", "route", "abort_stage"],
+  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+  registers: [register],
+});
+
 const axolotlRollsTotal = new client.Counter({
   name: "mcsr_axolotl_rolls_total",
   help: "Total axolotl rolls by channel and roll result.",
@@ -42,6 +58,13 @@ const matchesRequestsTotal = new client.Counter({
   name: "mcsr_matches_requests_total",
   help: "Total matches endpoint requests by channel and response status.",
   labelNames: ["channel", "status_code"],
+  registers: [register],
+});
+
+const matchesRequestsAbortedTotal = new client.Counter({
+  name: "mcsr_matches_requests_aborted_total",
+  help: "Total matches endpoint requests aborted before a response completed.",
+  labelNames: ["channel", "abort_stage"],
   registers: [register],
 });
 
@@ -80,6 +103,59 @@ function routeLabelFor(req) {
   return "unmatched";
 }
 
+function createRequestContext(req, res, route) {
+  const abortController = new AbortController();
+  const lifecycleRecorders = [];
+  const logContext = {};
+  let stage = "unknown";
+
+  const getElapsedMs = () =>
+    Number(process.hrtime.bigint() - res.locals.requestStartedAt) / 1e6;
+
+  return {
+    signal: abortController.signal,
+    abortController,
+    setStage(nextStage) {
+      stage = nextStage || "unknown";
+      res.locals.abortStage = stage;
+    },
+    getStage() {
+      return stage;
+    },
+    setLogContext(fields = {}) {
+      Object.assign(logContext, fields);
+    },
+    getLogContext() {
+      return { ...logContext };
+    },
+    addLifecycleRecorder(recorder) {
+      lifecycleRecorders.push(recorder);
+    },
+    emitLifecycle(eventType, payload) {
+      for (const recorder of lifecycleRecorders) {
+        if (eventType === "finish") {
+          recorder.onFinish?.(payload);
+          continue;
+        }
+
+        recorder.onAbort?.(payload);
+      }
+    },
+    log(level, event, extra = {}) {
+      console[level](
+        JSON.stringify({
+          event,
+          route,
+          abort_stage: stage,
+          elapsed_ms: getElapsedMs(),
+          ...logContext,
+          ...extra,
+        })
+      );
+    },
+  };
+}
+
 export function metricsMiddleware(req, res, next) {
   if (ignoredPaths.has(req.path)) {
     next();
@@ -90,20 +166,84 @@ export function metricsMiddleware(req, res, next) {
     method: req.method,
     route: routeLabelFor(req),
   };
-  const start = process.hrtime.bigint();
+  const requestStartedAt = process.hrtime.bigint();
+  const span = trace.getActiveSpan();
+  const requestContext = createRequestContext(req, res, inFlightLabels.route);
+  let finalized = false;
 
+  res.locals.requestStartedAt = requestStartedAt;
+  res.locals.abortStage = "unknown";
+  res.locals.requestContext = requestContext;
   httpRequestsInFlight.inc(inFlightLabels);
 
-  res.on("finish", () => {
-    const durationSeconds = Number(process.hrtime.bigint() - start) / 1e9;
-    const labels = {
+  const finalize = (eventType, abortReason) => {
+    if (finalized) return;
+    finalized = true;
+
+    const abortStage = requestContext.getStage();
+    const durationSeconds = Number(process.hrtime.bigint() - requestStartedAt) / 1e9;
+    httpRequestsInFlight.dec(inFlightLabels);
+
+    if (eventType === "finish") {
+      const labels = {
+        ...inFlightLabels,
+        status_code: String(res.statusCode),
+      };
+
+      httpRequestsTotal.inc(labels);
+      httpRequestDurationSeconds.observe(labels, durationSeconds);
+      requestContext.emitLifecycle("finish", {
+        statusCode: res.statusCode,
+        durationSeconds,
+      });
+      return;
+    }
+
+    const abortLabels = {
       ...inFlightLabels,
-      status_code: String(res.statusCode),
+      abort_stage: abortStage,
     };
 
-    httpRequestsInFlight.dec(inFlightLabels);
-    httpRequestsTotal.inc(labels);
-    httpRequestDurationSeconds.observe(labels, durationSeconds);
+    httpRequestsAbortedTotal.inc(abortLabels);
+    httpRequestAbortedDurationSeconds.observe(abortLabels, durationSeconds);
+
+    if (!requestContext.signal.aborted) {
+      requestContext.abortController.abort(abortReason);
+    }
+
+    if (span) {
+      span.setAttribute("request.aborted", true);
+      span.setAttribute("request.abort_stage", abortStage);
+      span.setAttribute("request.abort_reason", abortReason || "aborted");
+      span.addEvent("request.aborted", {
+        "request.abort_stage": abortStage,
+        "request.abort_reason": abortReason || "aborted",
+      });
+    }
+
+    requestContext.log("warn", "http_request_aborted", {
+      abort_reason: abortReason || "aborted",
+      method: req.method,
+    });
+    requestContext.emitLifecycle("abort", {
+      abortStage,
+      abortReason: abortReason || "aborted",
+      durationSeconds,
+    });
+  };
+
+  res.on("finish", () => {
+    finalize("finish");
+  });
+
+  req.on("aborted", () => {
+    finalize("aborted", "client_aborted");
+  });
+
+  res.on("close", () => {
+    if (!res.writableEnded) {
+      finalize("aborted", "client_closed");
+    }
   });
 
   next();
@@ -144,6 +284,28 @@ export function recordMatchesRequest(channel, statusCode) {
   });
 }
 
+export function recordMatchesAbort(channel, abortStage) {
+  matchesRequestsAbortedTotal.inc({
+    channel: channel || "anonymous",
+    abort_stage: abortStage || "unknown",
+  });
+}
+
+export function getRequestContext(res) {
+  return res.locals.requestContext;
+}
+
+export function instrumentMatchesRequest(requestContext, { channel }) {
+  requestContext.addLifecycleRecorder({
+    onFinish: ({ statusCode }) => {
+      recordMatchesRequest(channel, statusCode);
+    },
+    onAbort: ({ abortStage }) => {
+      recordMatchesAbort(channel, abortStage);
+    },
+  });
+}
+
 export function recordDraftoutRequest(channel, endpoint, statusCode) {
   draftoutRequestsTotal.inc({
     channel: channel || "anonymous",
@@ -160,6 +322,11 @@ export async function recordUpstreamRequest(labels, requestFn) {
     const response = await requestFn();
     statusCode = String(response.status ?? "unknown");
     return response;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      statusCode = "aborted";
+    }
+    throw error;
   } finally {
     const metricLabels = {
       ...labels,
