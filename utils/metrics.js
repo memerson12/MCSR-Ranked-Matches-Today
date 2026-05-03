@@ -192,6 +192,11 @@ export function metricsMiddleware(req, res, next) {
 
       httpRequestsTotal.inc(labels);
       httpRequestDurationSeconds.observe(labels, durationSeconds);
+      requestContext.log("info", "http_request_completed", {
+        method: req.method,
+        status_code: res.statusCode,
+        duration_ms: durationSeconds * 1000,
+      });
       requestContext.emitLifecycle("finish", {
         statusCode: res.statusCode,
         durationSeconds,
@@ -224,6 +229,7 @@ export function metricsMiddleware(req, res, next) {
     requestContext.log("warn", "http_request_aborted", {
       abort_reason: abortReason || "aborted",
       method: req.method,
+      duration_ms: durationSeconds * 1000,
     });
     requestContext.emitLifecycle("abort", {
       abortStage,
