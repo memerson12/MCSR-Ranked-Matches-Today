@@ -8,6 +8,9 @@ import {
 import { getChannelFromHeaders } from "../utils/headers_parser.js";
 
 const router = express.Router();
+const MCSR_RANKED_API_BASE_URL = "https://api.mcsrranked.com";
+const MATCHES_PAGE_SIZE = 100;
+const MAX_MATCH_PAGES = 20;
 
 router.get("/", async (req, res) => {
   const { username, timeframe } = req.query;
@@ -98,9 +101,11 @@ async function fetchMatchStats(username, userUUID, startDate, options = {}) {
   let totalMatchesCount = 0;
   let totalEloChange = 0;
   let drawCount = 0;
-  let page = 0;
+  let pagesFetched = 0;
+  let beforeMatchId = null;
+  let previousLastMatchId = null;
   let continueChecking = true;
-  const baseUrl = `https://mcsrranked.com/api/users/${username}/matches`;
+  const baseUrl = `${MCSR_RANKED_API_BASE_URL}/users/${username}/matches`;
 
   if (startDate) {
     while (continueChecking) {
@@ -108,7 +113,20 @@ async function fetchMatchStats(username, userUUID, startDate, options = {}) {
         throw createAbortError(signal.reason);
       }
 
-      const url = `${baseUrl}?count=25&page=${page}&type=2`;
+      if (pagesFetched >= MAX_MATCH_PAGES) {
+        throw new Error("Upstream match pagination exceeded safe page limit");
+      }
+
+      const searchParams = new URLSearchParams({
+        count: String(MATCHES_PAGE_SIZE),
+        type: "2",
+        sort: "newest",
+      });
+      if (beforeMatchId !== null) {
+        searchParams.set("before", String(beforeMatchId));
+      }
+
+      const url = `${baseUrl}?${searchParams.toString()}`;
       setAbortStage?.("fetch_matches");
       const response = await recordUpstreamRequest(
         { upstream: "mcsrranked", operation: "fetch_matches" },
@@ -118,6 +136,14 @@ async function fetchMatchStats(username, userUUID, startDate, options = {}) {
       const matches = data["data"];
 
       if (matches.length === 0) break; // No more matches to fetch
+
+      const lastMatchId = matches[matches.length - 1]?.id;
+      if (lastMatchId == null) {
+        throw new Error("Upstream match pagination response missing match id");
+      }
+      if (lastMatchId === previousLastMatchId || lastMatchId === beforeMatchId) {
+        throw new Error("Upstream match pagination returned a duplicate page");
+      }
 
       for (const match of matches) {
         const matchDate = new Date(parseInt(match["date"]) * 1000);
@@ -142,7 +168,9 @@ async function fetchMatchStats(username, userUUID, startDate, options = {}) {
         if (eloChange) totalEloChange += eloChange.change;
       }
 
-      page++;
+      previousLastMatchId = lastMatchId;
+      beforeMatchId = lastMatchId;
+      pagesFetched++;
     }
   }
 
@@ -195,7 +223,7 @@ async function fetchUserData(username, options = {}) {
   const { signal } = options;
   const response = await recordUpstreamRequest(
     { upstream: "mcsrranked", operation: "fetch_user" },
-    () => fetch(`https://mcsrranked.com/api/users/${username}`, { signal })
+    () => fetch(`${MCSR_RANKED_API_BASE_URL}/users/${username}`, { signal })
   );
   const data = await response.json();
   return data.status === "success" ? data.data : null;
