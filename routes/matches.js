@@ -9,7 +9,7 @@ import { getChannelFromHeaders } from "../utils/headers_parser.js";
 
 const router = express.Router();
 const MCSR_RANKED_API_BASE_URL = "https://api.mcsrranked.com";
-const MATCHES_PAGE_SIZE = 100;
+const MATCHES_PAGE_SIZE = 50;
 const MAX_MATCH_PAGES = 20;
 
 router.get("/", async (req, res) => {
