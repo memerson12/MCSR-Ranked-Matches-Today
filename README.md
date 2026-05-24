@@ -1,10 +1,10 @@
 # MCSR Ranked Matches Today
 
-This project provides APIs to fetch Minecraft Speedrun (MCSR) ranked match statistics, world records, and Draftout leaderboard data. It includes three main functionalities:
+This project provides APIs to fetch Minecraft Speedrun (MCSR) ranked match statistics, world records, and Draftout match statistics. It includes three main functionalities:
 
 1. **World Records Fetching** (`world_records.js`)
 2. **Match Statistics Fetching** (`matches.js`)
-3. **Draftout Leaderboard Fetching** (`draftout.js`)
+3. **Draftout Match Statistics Fetching** (`draftout.js`)
 
 ## World Records Fetching
 
@@ -94,47 +94,37 @@ The response will be a JSON object containing the match statistics.
 }
 ```
 
-## Draftout Leaderboard Fetching
+## Draftout Match Statistics Fetching
 
-The `draftout.js` route fetches `https://draftoutmc.com/leaderboard`, parses the HTML leaderboard table, and returns JSON. This is temporary until Draftout has a more developed API.
+The `draftout.js` route fetches the Draftout stats API and returns competitive match statistics for a given user over a Twitch uptime timeframe.
 
 ### Endpoints
 
-- `GET /api/draftout/leaderboard`: Returns the parsed Draftout leaderboard.
-- `GET /api/draftout/leaderboard?top=5`: Returns only the first `top` players. `top` must be a positive integer.
-- `GET /api/draftout/elo?username=Feinberg`: Returns one player's leaderboard placement, rank, and Elo.
+- `GET /api/draftout?username=Feinberg`: Returns the player's current Draftout Elo, rank, and overall competitive record with no timeframe match counts.
+- `GET /api/draftout?username=Feinberg&timeframe=1%20hour%20and%205%20minutes`: Returns the player's Draftout competitive match stats since the stream uptime start.
 
-### Example Leaderboard Response
-
-```json
-[
-  {
-    "placement": 1,
-    "username": "bing_pigs",
-    "rank": "Diamond I",
-    "elo": 1401
-  },
-  {
-    "placement": 2,
-    "username": "Feinberg",
-    "rank": "Amethyst III",
-    "elo": 1358
-  }
-]
-```
-
-### Example Elo Response
+### Example Response
 
 ```json
 {
-  "placement": 2,
   "username": "Feinberg",
-  "rank": "Amethyst III",
-  "elo": 1358
+  "timeframe": "1 hour and 5 minutes",
+  "startTime": "2026-05-23T10:55:00.000Z",
+  "totalMatchesCount": 3,
+  "wonMatchesCount": 2,
+  "lossMatchesCount": 1,
+  "drawCount": 0,
+  "totalEloChange": 11,
+  "currentElo": 1539,
+  "currentRank": 2,
+  "overallMatches": 31,
+  "overallWins": 28,
+  "overallLosses": 2,
+  "overallDraws": 1
 }
 ```
 
-If `username` is missing, `/api/draftout/elo` returns `400`. If the player is not found, it returns `404`.
+If `username` is missing, `/api/draftout` returns `400`. If the player is not found, it returns `404`.
 
 ## Metrics
 
