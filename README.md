@@ -100,10 +100,29 @@ The `draftout.js` route fetches the Draftout stats API and returns competitive m
 
 ### Endpoints
 
+- `GET /api/draftout/leaderboard`: Returns the Draftout Elo leaderboard.
+- `GET /api/draftout/leaderboard?top=3`: Returns only the first `top` leaderboard players. `top` must be a positive integer.
 - `GET /api/draftout?username=Feinberg`: Returns the player's current Draftout Elo, rank, and overall competitive record with no timeframe match counts.
 - `GET /api/draftout?username=Feinberg&timeframe=1%20hour%20and%205%20minutes`: Returns the player's Draftout competitive match stats since the stream uptime start.
 
-### Example Response
+### Example Leaderboard Response
+
+```json
+[
+  {
+    "username": "bing_pigs",
+    "rank": 1,
+    "elo": 1638
+  },
+  {
+    "username": "Feinberg",
+    "rank": 2,
+    "elo": 1618
+  }
+]
+```
+
+### Example Stats Response
 
 ```json
 {
@@ -124,7 +143,7 @@ The `draftout.js` route fetches the Draftout stats API and returns competitive m
 }
 ```
 
-If `username` is missing, `/api/draftout` returns `400`. If the player is not found, it returns `404`.
+If `top` is invalid, `/api/draftout/leaderboard` returns `400`. If `username` is missing, `/api/draftout` returns `400`. If the player is not found, it returns `404`.
 
 ## Metrics
 

@@ -10,7 +10,26 @@ import { getChannelFromHeaders } from "../utils/headers_parser.js";
 const router = express.Router();
 const DRAFTOUT_API_BASE_URL = "https://draftoutmc.com/api/stats";
 const DRAFTOUT_FILTER = "competitive";
+const DRAFTOUT_LEADERBOARD_METRIC = "elo";
 const MAX_DRAFTOUT_PAGES = 50;
+
+router.get("/leaderboard", async (req, res) => {
+  recordDraftoutRequestOnFinish(req, res, "leaderboard");
+
+  const top = getSingleQueryValue(req.query.top);
+
+  if (req.query.top !== undefined && !isPositiveInteger(top)) {
+    return res.status(400).json({ error: "top must be a positive integer" });
+  }
+
+  try {
+    const leaderboard = await fetchDraftoutLeaderboard(top);
+
+    res.status(200).json(summarizeDraftoutLeaderboard(leaderboard));
+  } catch (error) {
+    res.status(502).json({ error: error.message });
+  }
+});
 
 router.get("/", async (req, res) => {
   recordDraftoutRequestOnFinish(req, res, "stats");
@@ -83,6 +102,27 @@ router.get("/", async (req, res) => {
   }
 });
 
+async function fetchDraftoutLeaderboard(top) {
+  const searchParams = new URLSearchParams({
+    metric: DRAFTOUT_LEADERBOARD_METRIC,
+  });
+
+  if (top !== null) {
+    searchParams.set("limit", top);
+  }
+
+  const response = await recordUpstreamRequest(
+    { upstream: "draftout", operation: "fetch_leaderboard" },
+    () => fetch(`${DRAFTOUT_API_BASE_URL}?${searchParams.toString()}`)
+  );
+
+  if (!response.ok) {
+    throw new Error(`Draftout leaderboard returned ${response.status}`);
+  }
+
+  return response.json();
+}
+
 async function fetchDraftoutStatPages(username, startDate, options = {}) {
   const { signal, setAbortStage } = options;
   const pages = [];
@@ -118,6 +158,23 @@ async function fetchDraftoutStatPages(username, startDate, options = {}) {
   }
 
   return pages;
+}
+
+export function summarizeDraftoutLeaderboard(data) {
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
+
+  return rows
+    .map((row) => ({
+      username: row.username,
+      rank: row.rank,
+      elo: row.elo,
+    }))
+    .filter(
+      (entry) =>
+        entry.username &&
+        Number.isFinite(entry.rank) &&
+        Number.isFinite(entry.elo)
+    );
 }
 
 async function fetchDraftoutStatPage(username, page, options = {}) {
@@ -283,6 +340,10 @@ export function parseUptime(timeframe, now = new Date()) {
   totalSeconds = totalSeconds % 60;
 
   return new Date(now.getTime() - (totalMinutes * 60 + totalSeconds) * 1000);
+}
+
+export function isPositiveInteger(value) {
+  return /^\d+$/.test(value) && Number(value) > 0;
 }
 
 function getSingleQueryValue(value) {
