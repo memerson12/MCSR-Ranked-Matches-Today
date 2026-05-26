@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "dev": "env=development; nodemon server.js"
+    "dev": "env=development; nodemon server.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.6.0",

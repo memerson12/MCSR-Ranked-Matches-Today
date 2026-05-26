@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Draftout Widget</title>
+    <style>
+      :root {
+        --accent: #58d5e8;
+        --accent-soft: rgba(88, 213, 232, 0.18);
+        --panel: rgba(5, 8, 10, 0.94);
+        --panel-2: rgba(17, 24, 31, 0.96);
+        --line: rgba(255, 255, 255, 0.12);
+        --text: #f8fafc;
+        --muted: #a7b0bc;
+        --good: #4ade80;
+        --bad: #fb7185;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        overflow: hidden;
+        background: transparent;
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+          BlinkMacSystemFont, "Segoe UI", sans-serif;
+        letter-spacing: 0;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+      }
+
+      .widget {
+        position: relative;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        overflow: hidden;
+      }
+
+      .widget::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-top: 3px solid var(--accent);
+        pointer-events: none;
+      }
+
+      .compact {
+        width: 380px;
+        min-height: 82px;
+        border-radius: 22px;
+        padding: 14px 16px 13px;
+      }
+
+      .expanded {
+        width: 430px;
+        min-height: 222px;
+        border-radius: 18px;
+        padding: 16px;
+      }
+
+      .topline {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .avatar {
+        width: 46px;
+        height: 46px;
+        flex: 0 0 auto;
+        border-radius: 10px;
+        background: var(--accent-soft);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        object-fit: cover;
+      }
+
+      .identity {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 17px;
+        font-weight: 800;
+        line-height: 1.1;
+      }
+
+      .rank {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .elo {
+        flex: 0 0 auto;
+        text-align: right;
+        font-size: 30px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .delta {
+        margin-top: 3px;
+        font-size: 14px;
+        font-weight: 850;
+      }
+
+      .positive {
+        color: var(--good);
+      }
+
+      .negative {
+        color: var(--bad);
+      }
+
+      .neutral {
+        color: var(--muted);
+      }
+
+      .compact-stats {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 10px;
+        padding-top: 9px;
+        border-top: 1px solid var(--line);
+      }
+
+      .compact-stat {
+        display: flex;
+        gap: 5px;
+        align-items: baseline;
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .compact-stat span {
+        color: var(--muted);
+        font-size: 10px;
+        text-transform: uppercase;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .tile {
+        min-height: 58px;
+        border-radius: 9px;
+        background: var(--panel-2);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 8px;
+        text-align: center;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 750;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+
+      .value {
+        margin-top: 7px;
+        font-size: 18px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .latest {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        margin-top: 10px;
+        min-height: 48px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--line);
+        padding: 10px;
+      }
+
+      .latest-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .latest-meta {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 650;
+      }
+
+      .badge {
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        padding: 5px 9px;
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .empty,
+      .error {
+        display: grid;
+        min-height: 82px;
+        place-items: center;
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="app" class="widget compact">
+      <div class="empty">Loading Draftout...</div>
+    </main>
+
+    <script>
+      const app = document.getElementById("app");
+      const params = new URLSearchParams(window.location.search);
+      const config = {
+        username: (params.get("username") || "").trim(),
+        mode: params.get("mode") === "expanded" ? "expanded" : "compact",
+        gapHours: positiveNumber(params.get("gapHours"), 6),
+        refreshSeconds: positiveNumber(params.get("refreshSeconds"), 30),
+        accent: normalizeAccent(params.get("accent")),
+      };
+      let lastData = null;
+
+      document.documentElement.style.setProperty("--accent", config.accent);
+      document.documentElement.style.setProperty(
+        "--accent-soft",
+        hexToRgba(config.accent, 0.18)
+      );
+      app.className = `widget ${config.mode}`;
+
+      if (!config.username) {
+        renderError("Username required");
+      } else {
+        update();
+        setInterval(update, config.refreshSeconds * 1000);
+      }
+
+      async function update() {
+        try {
+          const response = await fetch(widgetApiUrl(), { cache: "no-store" });
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Draftout request failed");
+          }
+
+          lastData = data;
+          render(data, false);
+        } catch (error) {
+          if (lastData) {
+            render(lastData, true);
+          } else {
+            renderError(error.message || "Draftout unavailable");
+          }
+        }
+      }
+
+      function widgetApiUrl() {
+        const apiParams = new URLSearchParams({
+          username: config.username,
+          mode: config.mode,
+          gapHours: String(config.gapHours),
+          refreshSeconds: String(config.refreshSeconds),
+          accent: config.accent,
+        });
+
+        return `/api/draftout/widget?${apiParams.toString()}`;
+      }
+
+      function render(data) {
+        app.className = `widget ${config.mode}`;
+
+        if (config.mode === "expanded") {
+          app.innerHTML = expandedTemplate(data);
+        } else {
+          app.innerHTML = compactTemplate(data);
+        }
+      }
+
+      function compactTemplate(data) {
+        const session = data.session;
+
+        return `
+          <section class="topline">
+            <img class="avatar" src="${skinUrl(data.username)}" alt="" />
+            <div class="identity">
+              <div class="name">${escapeHtml(data.username)}</div>
+              <div class="rank" style="color: ${rankColor(data)}">${rankText(data)}</div>
+            </div>
+            <div class="elo">
+              ${formatNumber(data.currentElo)}
+              <div class="delta ${deltaClass(session.totalEloChange)}">
+                ${formatDelta(session.totalEloChange)}
+              </div>
+            </div>
+          </section>
+          <section class="compact-stats">
+            <div class="compact-stat"><span>W</span>${session.wonMatchesCount}</div>
+            <div class="compact-stat"><span>L</span>${session.lossMatchesCount}</div>
+            <div class="compact-stat"><span>D</span>${session.drawCount}</div>
+            <div class="compact-stat"><span>Session</span>${session.totalMatchesCount}</div>
+          </section>
+        `;
+      }
+
+      function expandedTemplate(data) {
+        const session = data.session;
+        const latest = data.latestMatch;
+
+        return `
+          <section class="topline">
+            <img class="avatar" src="${skinUrl(data.username)}" alt="" />
+            <div class="identity">
+              <div class="name">${escapeHtml(data.username)}</div>
+              <div class="rank" style="color: ${rankColor(data)}">${rankText(data)}</div>
+            </div>
+            <div class="elo">
+              ${formatNumber(data.currentElo)}
+              <div class="delta ${deltaClass(session.totalEloChange)}">
+                ${formatDelta(session.totalEloChange)}
+              </div>
+            </div>
+          </section>
+          <section class="grid">
+            <div class="tile"><div class="label">W-L-D</div><div class="value">${session.wonMatchesCount}-${session.lossMatchesCount}-${session.drawCount}</div></div>
+            <div class="tile"><div class="label">Winrate</div><div class="value">${session.winRate}%</div></div>
+            <div class="tile"><div class="label">Streak</div><div class="value">${session.currentWinStreak}</div></div>
+            <div class="tile"><div class="label">Overall</div><div class="value">${data.overall.wins}-${data.overall.losses}-${data.overall.draws}</div></div>
+          </section>
+          <section class="latest">
+            <div>
+              <div class="latest-name">${latest ? escapeHtml(latest.opponentUsername || "Unknown") : "No active session"}</div>
+              <div class="latest-meta">${latestMeta(latest)}</div>
+            </div>
+            ${latest ? `<div class="badge">${latest.result}</div>` : ""}
+          </section>
+        `;
+      }
+
+      function latestMeta(latest) {
+        if (!latest) {
+          return "Waiting for the next Draftout match";
+        }
+
+        const score =
+          latest.playerScore == null || latest.opponentScore == null
+            ? ""
+            : `${latest.playerScore}-${latest.opponentScore}`;
+        return `${score} ${formatDelta(latest.eloChange)}`.trim();
+      }
+
+      function renderError(message) {
+        app.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+      }
+
+      function positiveNumber(value, fallback) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+      }
+
+      function normalizeAccent(value) {
+        const raw = String(value || "").trim();
+        const hex = raw.startsWith("#") ? raw.slice(1) : raw;
+        return /^[0-9a-fA-F]{6}$/.test(hex)
+          ? `#${hex.toLowerCase()}`
+          : "#58d5e8";
+      }
+
+      function hexToRgba(hex, alpha) {
+        const value = hex.slice(1);
+        const red = parseInt(value.slice(0, 2), 16);
+        const green = parseInt(value.slice(2, 4), 16);
+        const blue = parseInt(value.slice(4, 6), 16);
+        return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+      }
+
+      function rankText(data) {
+        const rank = data.currentRank == null ? "Unranked" : `#${data.currentRank}`;
+        return data.rankName ? `${data.rankName} · ${rank}` : rank;
+      }
+
+      function rankColor(data) {
+        return /^#[0-9a-fA-F]{6}$/.test(data.rankColor || "")
+          ? data.rankColor
+          : "var(--muted)";
+      }
+
+      function skinUrl(username) {
+        return `https://mineskin.eu/helm/${encodeURIComponent(username)}/100.png`;
+      }
+
+      function formatNumber(value) {
+        return Number.isFinite(Number(value)) ? Number(value).toLocaleString() : "-";
+      }
+
+      function formatDelta(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric) || numeric === 0) {
+          return "0";
+        }
+        return numeric > 0 ? `+${numeric}` : String(numeric);
+      }
+
+      function deltaClass(value) {
+        const numeric = Number(value);
+        if (numeric > 0) return "positive";
+        if (numeric < 0) return "negative";
+        return "neutral";
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+    </script>
+  </body>
+</html>

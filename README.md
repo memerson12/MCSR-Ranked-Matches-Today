@@ -1,10 +1,13 @@
 # MCSR Ranked Matches Today
 
-This project provides APIs to fetch Minecraft Speedrun (MCSR) ranked match statistics, world records, and Draftout match statistics. It includes three main functionalities:
+This project provides APIs to fetch Minecraft Speedrun (MCSR) ranked match statistics, world records, and Draftout match statistics. It also includes a Draftout OBS browser-source widget and widget configuration page.
+
+It includes four main functionalities:
 
 1. **World Records Fetching** (`world_records.js`)
 2. **Match Statistics Fetching** (`matches.js`)
 3. **Draftout Match Statistics Fetching** (`draftout.js`)
+4. **Draftout OBS Widget** (`public/draftout-widget.html`)
 
 ## World Records Fetching
 
@@ -104,6 +107,7 @@ The `draftout.js` route fetches the Draftout stats API and returns competitive m
 - `GET /api/draftout/leaderboard?top=3`: Returns only the first `top` leaderboard players. `top` must be a positive integer.
 - `GET /api/draftout?username=Feinberg`: Returns the player's current Draftout Elo, rank, and overall competitive record with no timeframe match counts.
 - `GET /api/draftout?username=Feinberg&timeframe=1%20hour%20and%205%20minutes`: Returns the player's Draftout competitive match stats since the stream uptime start.
+- `GET /api/draftout/widget?username=Feinberg`: Returns Draftout stats formatted for the OBS widget.
 
 ### Example Leaderboard Response
 
@@ -143,7 +147,67 @@ The `draftout.js` route fetches the Draftout stats API and returns competitive m
 }
 ```
 
-If `top` is invalid, `/api/draftout/leaderboard` returns `400`. If `username` is missing, `/api/draftout` returns `400`. If the player is not found, it returns `404`.
+### Example Widget Response
+
+```json
+{
+  "username": "Feinberg",
+  "currentElo": 1705,
+  "currentRank": 1,
+  "rankName": "Guardian I",
+  "rankColor": "#45686e",
+  "hasActiveSession": true,
+  "session": {
+    "totalMatchesCount": 7,
+    "wonMatchesCount": 7,
+    "lossMatchesCount": 0,
+    "drawCount": 0,
+    "totalEloChange": 72,
+    "winRate": 100,
+    "currentWinStreak": 7
+  },
+  "latestMatch": {
+    "opponentUsername": "luxuryz",
+    "result": "win",
+    "playerScore": 13,
+    "opponentScore": 9,
+    "eloChange": 13
+  },
+  "overall": {
+    "matches": 43,
+    "wins": 40,
+    "losses": 2,
+    "draws": 1,
+    "winRate": 95
+  }
+}
+```
+
+If `top` is invalid, `/api/draftout/leaderboard` returns `400`. If `username` is missing, `/api/draftout` and `/api/draftout/widget` return `400`. If the player is not found, they return `404`.
+
+## Draftout OBS Widget
+
+The app serves a browser-source widget for OBS. Use these paths on whatever host is serving the app:
+
+- Config page: `/draftout-widget-config.html`
+- Overlay page: `/draftout-widget.html`
+
+Use the config page to choose:
+
+- Draftout username
+- Compact or expanded widget mode
+- Session gap hours
+- Refresh seconds
+- Accent color
+
+The config page generates the overlay URL and shows the recommended OBS browser source size.
+
+Recommended OBS source sizes:
+
+- Compact: `380 x 82`
+- Expanded: `430 x 222`
+
+The widget detects the current session by walking backward through recent Draftout competitive matches until it finds a gap larger than the configured session gap. If the newest match is older than the gap, session stats display as zeroes.
 
 ## Metrics
 
@@ -169,7 +233,7 @@ Draftout channel labels are parsed from Fossabot or Nightbot headers when presen
 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/yourusername/MCSR-Ranked-Matches-Today.git
+   git clone https://github.com/memerson12/MCSR-Ranked-Matches-Today.git
    ```
 2. Install dependencies:
    ```sh
@@ -190,10 +254,16 @@ SHEETS_KEY=your_google_sheets_api_key
 To start the project, run:
 
 ```sh
-npm run dev
+pnpm dev
 ```
 
-This will start the development server, and you can access the APIs at `http://localhost:3000`.
+This will start the development server. Use the configured app host and port to access the APIs and widget pages.
+
+To run the test suite:
+
+```sh
+pnpm test
+```
 
 ## License
 

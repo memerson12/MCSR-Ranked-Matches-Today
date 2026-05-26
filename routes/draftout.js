@@ -12,6 +12,9 @@ const DRAFTOUT_API_BASE_URL = "https://draftoutmc.com/api/stats";
 const DRAFTOUT_FILTER = "competitive";
 const DRAFTOUT_LEADERBOARD_METRIC = "elo";
 const MAX_DRAFTOUT_PAGES = 50;
+const DEFAULT_WIDGET_GAP_HOURS = 6;
+const DEFAULT_WIDGET_REFRESH_SECONDS = 30;
+const DEFAULT_WIDGET_ACCENT = "#58d5e8";
 
 router.get("/leaderboard", async (req, res) => {
   recordDraftoutRequestOnFinish(req, res, "leaderboard");
@@ -28,6 +31,64 @@ router.get("/leaderboard", async (req, res) => {
     res.status(200).json(summarizeDraftoutLeaderboard(leaderboard));
   } catch (error) {
     res.status(502).json({ error: error.message });
+  }
+});
+
+router.get("/widget", async (req, res) => {
+  recordDraftoutRequestOnFinish(req, res, "widget");
+
+  const username = getSingleQueryValue(req.query.username);
+  const options = getDraftoutWidgetOptions(req.query);
+  const channel = getChannelFromHeaders(req.headers) || "anonymous";
+  const requestContext = getRequestContext(res);
+  const signal = requestContext?.signal;
+
+  requestContext?.setStage("before_upstream");
+  requestContext?.setLogContext({
+    channel,
+    username: username || null,
+    gapHours: options.gapHours,
+  });
+
+  if (!username) {
+    return res.status(400).json({ error: "Username is required" });
+  }
+
+  try {
+    requestContext?.setStage("fetch_draftout_widget_stats");
+    const pages = await fetchDraftoutWidgetPages(username, options.gapHours, {
+      signal,
+      setAbortStage: requestContext?.setStage,
+    });
+    const firstPage = pages[0];
+
+    if (!firstPage?.player) {
+      return res
+        .status(404)
+        .json({ error: `No Draftout stats for ${username} were found` });
+    }
+
+    requestContext?.setStage("response_write");
+    res.status(200).json({
+      ...summarizeDraftoutWidgetStats(username, pages, {
+        gapHours: options.gapHours,
+      }),
+      options,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError" || signal?.aborted) {
+      return;
+    }
+
+    requestContext?.log("error", "draftout_widget_request_failed", {
+      error: error?.message || String(error),
+    });
+
+    if (!res.headersSent) {
+      res
+        .status(502)
+        .json({ error: "Failed to fetch Draftout widget data" });
+    }
   }
 });
 
@@ -160,6 +221,43 @@ async function fetchDraftoutStatPages(username, startDate, options = {}) {
   return pages;
 }
 
+async function fetchDraftoutWidgetPages(username, gapHours, options = {}) {
+  const { signal, setAbortStage } = options;
+  const pages = [];
+  let pageNumber = 1;
+  let totalPages = 1;
+  let shouldContinue = true;
+
+  while (shouldContinue) {
+    if (signal?.aborted) {
+      throw createAbortError(signal.reason);
+    }
+
+    if (pageNumber > MAX_DRAFTOUT_PAGES) {
+      throw new Error("Draftout pagination exceeded safe page limit");
+    }
+
+    setAbortStage?.("fetch_draftout_widget_stats");
+    const page = await fetchDraftoutStatPage(username, pageNumber, { signal });
+    pages.push(page);
+
+    if (!page.player) {
+      break;
+    }
+
+    totalPages = getSafeTotalPages(page.totalPages);
+
+    if (widgetPagesContainSessionBoundary(pages, gapHours, new Date())) {
+      break;
+    }
+
+    pageNumber++;
+    shouldContinue = pageNumber <= totalPages;
+  }
+
+  return pages;
+}
+
 export function summarizeDraftoutLeaderboard(data) {
   const rows = Array.isArray(data?.rows) ? data.rows : [];
 
@@ -175,6 +273,77 @@ export function summarizeDraftoutLeaderboard(data) {
         Number.isFinite(entry.rank) &&
         Number.isFinite(entry.elo)
     );
+}
+
+export function summarizeDraftoutWidgetStats(
+  requestedUsername,
+  pages,
+  options = {}
+) {
+  const gapHours = normalizePositiveNumber(
+    options.gapHours,
+    DEFAULT_WIDGET_GAP_HOURS
+  );
+  const now = options.now instanceof Date ? options.now : new Date();
+  const firstPage = pages[0] ?? {};
+  const player = firstPage.player ?? {};
+  const record = firstPage.record ?? {};
+  const aggregate = firstPage.aggregate ?? {};
+  const allMatches = getSortedDraftoutMatches(pages);
+  const activeSessionMatches = getActiveSessionMatches(allMatches, gapHours, now);
+  const hasActiveSession = activeSessionMatches.length > 0;
+  const session = summarizeDraftoutSessionMatches(
+    activeSessionMatches,
+    player,
+    requestedUsername
+  );
+  const latestMatch = hasActiveSession
+    ? summarizeLatestDraftoutMatch(
+        activeSessionMatches[0],
+        player,
+        requestedUsername
+      )
+    : null;
+
+  return {
+    username: player.username || requestedUsername,
+    currentElo: player.elo ?? null,
+    currentRank: player.rank ?? null,
+    rankName: player.rankName ?? null,
+    rankColor: player.rankColor ?? null,
+    hasActiveSession,
+    session,
+    latestMatch,
+    overall: {
+      matches: record.matches ?? 0,
+      completedMatches: record.completedMatches ?? record.matches ?? 0,
+      wins: record.wins ?? 0,
+      losses: record.losses ?? 0,
+      draws: record.draws ?? 0,
+      winRate:
+        Number.isFinite(record.winRate) ? Math.round(record.winRate * 100) : 0,
+    },
+    aggregate: {
+      peakElo: aggregate.peakElo ?? null,
+      bestStreak: aggregate.bestStreak ?? null,
+    },
+    generatedAt: now.toISOString(),
+  };
+}
+
+export function getDraftoutWidgetOptions(query) {
+  return {
+    mode: query.mode === "expanded" ? "expanded" : "compact",
+    gapHours: normalizePositiveNumber(
+      getSingleQueryValue(query.gapHours),
+      DEFAULT_WIDGET_GAP_HOURS
+    ),
+    refreshSeconds: normalizePositiveNumber(
+      getSingleQueryValue(query.refreshSeconds),
+      DEFAULT_WIDGET_REFRESH_SECONDS
+    ),
+    accent: normalizeAccent(getSingleQueryValue(query.accent)),
+  };
 }
 
 async function fetchDraftoutStatPage(username, page, options = {}) {
@@ -255,6 +424,175 @@ export function summarizeDraftoutStats(
     overallLosses: record.losses ?? 0,
     overallDraws: record.draws ?? 0,
   };
+}
+
+function summarizeDraftoutSessionMatches(matches, player, requestedUsername) {
+  let wonMatchesCount = 0;
+  let drawCount = 0;
+  let totalEloChange = 0;
+  let currentWinStreak = 0;
+  let streakOpen = true;
+
+  for (const match of matches) {
+    const participant = findPlayerParticipant(match, player, requestedUsername);
+    if (!participant) {
+      continue;
+    }
+
+    const draw = isDraw(match);
+    const won = !draw && participant.won === true;
+
+    if (draw) {
+      drawCount++;
+    } else if (won) {
+      wonMatchesCount++;
+    }
+
+    if (streakOpen && won) {
+      currentWinStreak++;
+    } else {
+      streakOpen = false;
+    }
+
+    if (Number.isFinite(participant.eloChange)) {
+      totalEloChange += participant.eloChange;
+    }
+  }
+
+  const totalMatchesCount = matches.length;
+  const lossMatchesCount = totalMatchesCount - wonMatchesCount - drawCount;
+
+  return {
+    totalMatchesCount,
+    wonMatchesCount,
+    lossMatchesCount,
+    drawCount,
+    totalEloChange,
+    winRate:
+      totalMatchesCount > 0
+        ? Math.round((wonMatchesCount / totalMatchesCount) * 100)
+        : 0,
+    currentWinStreak,
+  };
+}
+
+function summarizeLatestDraftoutMatch(match, player, requestedUsername) {
+  const participant = findPlayerParticipant(match, player, requestedUsername);
+  const opponent = findOpponentParticipant(match, participant);
+  const draw = isDraw(match);
+  let result = "loss";
+
+  if (draw) {
+    result = "draw";
+  } else if (participant?.won === true) {
+    result = "win";
+  }
+
+  return {
+    id: match.id ?? null,
+    completedAt: Number.isFinite(Number(match.completedAt))
+      ? new Date(Number(match.completedAt)).toISOString()
+      : null,
+    outcome: match.outcome ?? null,
+    result,
+    opponentUsername: opponent?.username ?? null,
+    opponentElo: opponent?.eloBefore ?? null,
+    playerScore: participant?.score ?? null,
+    opponentScore: opponent?.score ?? null,
+    eloChange: participant?.eloChange ?? null,
+    durationMs: match.durationMs ?? null,
+  };
+}
+
+function findOpponentParticipant(match, participant) {
+  const participants = Array.isArray(match.participants)
+    ? match.participants
+    : [];
+
+  if (!participant) {
+    return participants[0] ?? null;
+  }
+
+  return (
+    participants.find((candidate) => candidate.uuid !== participant.uuid) ?? null
+  );
+}
+
+function getActiveSessionMatches(matches, gapHours, now) {
+  if (matches.length === 0) {
+    return [];
+  }
+
+  const newestCompletedAt = getCompletedAtDate(matches[0]);
+  if (!newestCompletedAt || hoursBetween(now, newestCompletedAt) > gapHours) {
+    return [];
+  }
+
+  const activeMatches = [matches[0]];
+
+  for (let index = 1; index < matches.length; index++) {
+    const previousCompletedAt = getCompletedAtDate(matches[index - 1]);
+    const currentCompletedAt = getCompletedAtDate(matches[index]);
+
+    if (
+      !previousCompletedAt ||
+      !currentCompletedAt ||
+      hoursBetween(previousCompletedAt, currentCompletedAt) > gapHours
+    ) {
+      break;
+    }
+
+    activeMatches.push(matches[index]);
+  }
+
+  return activeMatches;
+}
+
+function widgetPagesContainSessionBoundary(pages, gapHours, now) {
+  const matches = getSortedDraftoutMatches(pages);
+
+  if (matches.length === 0) {
+    return true;
+  }
+
+  const newestCompletedAt = getCompletedAtDate(matches[0]);
+  if (!newestCompletedAt || hoursBetween(now, newestCompletedAt) > gapHours) {
+    return true;
+  }
+
+  return getActiveSessionMatches(matches, gapHours, now).length < matches.length;
+}
+
+function getSortedDraftoutMatches(pages) {
+  return pages
+    .flatMap((page) => (Array.isArray(page.matches) ? page.matches : []))
+    .filter((match) => Number.isFinite(Number(match.completedAt)))
+    .sort((left, right) => Number(right.completedAt) - Number(left.completedAt));
+}
+
+function getCompletedAtDate(match) {
+  const completedAt = Number(match?.completedAt);
+
+  return Number.isFinite(completedAt) ? new Date(completedAt) : null;
+}
+
+function hoursBetween(later, earlier) {
+  return Math.abs(later.getTime() - earlier.getTime()) / 3600000;
+}
+
+function normalizePositiveNumber(value, fallback) {
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function normalizeAccent(value) {
+  const accent = typeof value === "string" ? value.trim() : "";
+  const hex = accent.startsWith("#") ? accent.slice(1) : accent;
+
+  return /^[0-9a-fA-F]{6}$/.test(hex)
+    ? `#${hex.toLowerCase()}`
+    : DEFAULT_WIDGET_ACCENT;
 }
 
 function findPlayerParticipant(match, player, requestedUsername) {

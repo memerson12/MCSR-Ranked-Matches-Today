@@ -100,6 +100,7 @@ function routeLabelFor(req) {
   if (req.path === "/api/draftout/leaderboard") {
     return "/api/draftout/leaderboard";
   }
+  if (req.path === "/api/draftout/widget") return "/api/draftout/widget";
   return "unmatched";
 }
 
