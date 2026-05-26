@@ -337,8 +337,13 @@ export function summarizeDraftoutWidgetStats(
 }
 
 export function getDraftoutWidgetOptions(query) {
+  const requestedMode = getSingleQueryValue(query.mode);
+  const mode = ["ultra_compact", "compact", "expanded"].includes(requestedMode)
+    ? requestedMode
+    : "compact";
+
   return {
-    mode: query.mode === "expanded" ? "expanded" : "compact",
+    mode,
     gapHours: normalizePositiveNumber(
       getSingleQueryValue(query.gapHours),
       DEFAULT_WIDGET_GAP_HOURS

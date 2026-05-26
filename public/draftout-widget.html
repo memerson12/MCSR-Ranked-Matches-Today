@@ -53,6 +53,18 @@
         pointer-events: none;
       }
 
+      .ultra-compact {
+        width: 170px;
+        min-height: 36px;
+        border: 0;
+        border-radius: 999px;
+        padding: 5px 10px;
+      }
+
+      .ultra-compact::before {
+        display: none;
+      }
+
       .compact {
         width: 380px;
         min-height: 82px;
@@ -129,6 +141,53 @@
 
       .neutral {
         color: var(--muted);
+      }
+
+      .ultra-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 26px;
+      }
+
+      .rank-icon,
+      .rank-fallback {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+      }
+
+      .rank-icon {
+        object-fit: contain;
+        image-rendering: pixelated;
+      }
+
+      .rank-fallback {
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        background: var(--accent);
+      }
+
+      .ultra-elo {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        font-size: 15px;
+        font-weight: 850;
+        line-height: 1;
+      }
+
+      .ultra-elo span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .ultra-delta {
+        flex: 0 0 auto;
+        font-size: 13px;
+        font-weight: 850;
+        line-height: 1;
       }
 
       .compact-stats {
@@ -243,9 +302,12 @@
     <script>
       const app = document.getElementById("app");
       const params = new URLSearchParams(window.location.search);
+      const requestedMode = params.get("mode");
       const config = {
         username: (params.get("username") || "").trim(),
-        mode: params.get("mode") === "expanded" ? "expanded" : "compact",
+        mode: ["ultra_compact", "compact", "expanded"].includes(requestedMode)
+          ? requestedMode
+          : "compact",
         gapHours: positiveNumber(params.get("gapHours"), 6),
         refreshSeconds: positiveNumber(params.get("refreshSeconds"), 30),
         accent: normalizeAccent(params.get("accent")),
@@ -257,7 +319,7 @@
         "--accent-soft",
         hexToRgba(config.accent, 0.18)
       );
-      app.className = `widget ${config.mode}`;
+      app.className = widgetClassName();
 
       if (!config.username) {
         renderError("Username required");
@@ -299,13 +361,40 @@
       }
 
       function render(data) {
-        app.className = `widget ${config.mode}`;
+        app.className = widgetClassName();
 
-        if (config.mode === "expanded") {
+        if (config.mode === "ultra_compact") {
+          app.innerHTML = ultraCompactTemplate(data);
+        } else if (config.mode === "expanded") {
           app.innerHTML = expandedTemplate(data);
         } else {
           app.innerHTML = compactTemplate(data);
         }
+      }
+
+      function widgetClassName() {
+        return config.mode === "ultra_compact"
+          ? "widget ultra-compact"
+          : `widget ${config.mode}`;
+      }
+
+      function ultraCompactTemplate(data) {
+        const session = data.session;
+        const rankIconUrl = getRankIconUrl(data.rankName);
+
+        return `
+          <section class="ultra-row">
+            ${
+              rankIconUrl
+                ? `<img class="rank-icon" src="${rankIconUrl}" alt="" />`
+                : `<span class="rank-fallback" style="background: ${rankColor(data)}"></span>`
+            }
+            <div class="ultra-elo">${formatNumber(data.currentElo)} <span>elo</span></div>
+            <div class="ultra-delta ${deltaClass(session.totalEloChange)}">
+              ${formatSignedDelta(session.totalEloChange)}
+            </div>
+          </section>
+        `;
       }
 
       function compactTemplate(data) {
@@ -416,6 +505,28 @@
           : "var(--muted)";
       }
 
+      function getRankIconUrl(rankName) {
+        const baseRank = getBaseRankName(rankName);
+        const iconUrls = {
+          coal: "https://minecraft.wiki/images/Coal_JE4_BE3.png",
+          iron: "https://minecraft.wiki/images/Iron_Ingot_JE3_BE2.png",
+          gold: "https://minecraft.wiki/images/Gold_Ingot_JE4_BE2.png",
+          amethyst: "https://minecraft.wiki/images/Amethyst_Shard_JE2_BE1.png",
+          diamond: "https://minecraft.wiki/images/Diamond_JE3_BE3.png",
+          guardian: "https://minecraft.wiki/images/Guardian_JE2_BE2.gif",
+          warden: "https://minecraft.wiki/images/Warden.gif",
+        };
+
+        return iconUrls[baseRank] || null;
+      }
+
+      function getBaseRankName(rankName) {
+        return String(rankName || "")
+          .replace(/\s+(I|II|III)$/i, "")
+          .trim()
+          .toLowerCase();
+      }
+
       function skinUrl(username) {
         return `https://mineskin.eu/helm/${encodeURIComponent(username)}/100.png`;
       }
@@ -430,6 +541,14 @@
           return "0";
         }
         return numeric > 0 ? `+${numeric}` : String(numeric);
+      }
+
+      function formatSignedDelta(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return "+0";
+        }
+        return numeric >= 0 ? `+${numeric}` : String(numeric);
       }
 
       function deltaClass(value) {

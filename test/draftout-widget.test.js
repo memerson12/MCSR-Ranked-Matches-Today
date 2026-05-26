@@ -138,6 +138,13 @@ test("getDraftoutWidgetOptions normalizes defaults and invalid query values", ()
       accent: "#ff8800",
     }
   );
+
+  assert.equal(
+    getDraftoutWidgetOptions({ mode: "ultra_compact" }).mode,
+    "ultra_compact"
+  );
+
+  assert.equal(getDraftoutWidgetOptions({ mode: "bad-mode" }).mode, "compact");
 });
 
 function pagesWithMatches(matches) {

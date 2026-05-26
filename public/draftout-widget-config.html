@@ -127,7 +127,7 @@
 
       .segments {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 8px;
         margin-top: 7px;
       }
@@ -378,6 +378,10 @@
             <legend>Mode</legend>
             <div class="segments">
               <label class="segment">
+                <input type="radio" name="mode" value="ultra_compact" />
+                <span>Ultra compact</span>
+              </label>
+              <label class="segment">
                 <input type="radio" name="mode" value="compact" checked />
                 <span>Compact</span>
               </label>
@@ -494,7 +498,11 @@
         controls.url.value = url;
         controls.preview.src = url;
         controls.obsSize.textContent =
-          mode === "expanded" ? "430 x 222" : "380 x 82";
+          mode === "ultra_compact"
+            ? "170 x 36"
+            : mode === "expanded"
+            ? "430 x 222"
+            : "380 x 82";
       }
 
       function buildWidgetUrl() {

@@ -195,7 +195,7 @@ The app serves a browser-source widget for OBS. Use these paths on whatever host
 Use the config page to choose:
 
 - Draftout username
-- Compact or expanded widget mode
+- Ultra compact, compact, or expanded widget mode
 - Session gap hours
 - Refresh seconds
 - Accent color
@@ -204,6 +204,7 @@ The config page generates the overlay URL and shows the recommended OBS browser 
 
 Recommended OBS source sizes:
 
+- Ultra compact: `170 x 36`
 - Compact: `380 x 82`
 - Expanded: `430 x 222`
 
