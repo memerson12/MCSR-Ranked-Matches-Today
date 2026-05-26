@@ -75,6 +75,13 @@ const draftoutRequestsTotal = new client.Counter({
   registers: [register],
 });
 
+const draftoutWidgetUserRequestsTotal = new client.Counter({
+  name: "mcsr_draftout_widget_user_requests_total",
+  help: "Total Draftout widget requests by queried username, channel, and response status.",
+  labelNames: ["username", "channel", "status_code"],
+  registers: [register],
+});
+
 const upstreamRequestsTotal = new client.Counter({
   name: "mcsr_upstream_requests_total",
   help: "Total upstream HTTP requests made by the app.",
@@ -319,6 +326,21 @@ export function recordDraftoutRequest(channel, endpoint, statusCode) {
     endpoint,
     status_code: String(statusCode),
   });
+}
+
+export function recordDraftoutWidgetUserRequest(username, channel, statusCode) {
+  draftoutWidgetUserRequestsTotal.inc({
+    username: normalizeDraftoutWidgetUsername(username),
+    channel: channel || "anonymous",
+    status_code: String(statusCode),
+  });
+}
+
+export function normalizeDraftoutWidgetUsername(username) {
+  const normalizedUsername =
+    typeof username === "string" ? username.trim().toLowerCase() : "";
+
+  return normalizedUsername || "unknown";
 }
 
 export async function recordUpstreamRequest(labels, requestFn) {

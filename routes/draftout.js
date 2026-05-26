@@ -3,6 +3,7 @@ import fetch from "node-fetch";
 import {
   getRequestContext,
   recordDraftoutRequest,
+  recordDraftoutWidgetUserRequest,
   recordUpstreamRequest,
 } from "../utils/metrics.js";
 import { getChannelFromHeaders } from "../utils/headers_parser.js";
@@ -42,6 +43,10 @@ router.get("/widget", async (req, res) => {
   const channel = getChannelFromHeaders(req.headers) || "anonymous";
   const requestContext = getRequestContext(res);
   const signal = requestContext?.signal;
+
+  res.on("finish", () => {
+    recordDraftoutWidgetUserRequest(username, channel, res.statusCode);
+  });
 
   requestContext?.setStage("before_upstream");
   requestContext?.setLogContext({
