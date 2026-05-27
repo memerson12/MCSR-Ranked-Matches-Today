@@ -111,10 +111,28 @@
       }
 
       .rank {
+        display: flex;
+        align-items: center;
+        gap: 5px;
         margin-top: 3px;
         color: var(--muted);
         font-size: 12px;
         font-weight: 650;
+        line-height: 1.1;
+        min-width: 0;
+      }
+
+      .rank .rank-icon,
+      .rank .rank-fallback {
+        width: 14px;
+        height: 14px;
+      }
+
+      .rank-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .elo {
@@ -380,15 +398,10 @@
 
       function ultraCompactTemplate(data) {
         const session = data.session;
-        const rankIconUrl = getRankIconUrl(data.rankName);
 
         return `
           <section class="ultra-row">
-            ${
-              rankIconUrl
-                ? `<img class="rank-icon" src="${rankIconUrl}" alt="" />`
-                : `<span class="rank-fallback" style="background: ${rankColor(data)}"></span>`
-            }
+            ${rankIconMarkup(data)}
             <div class="ultra-elo">${formatNumber(data.currentElo)} <span>elo</span></div>
             <div class="ultra-delta ${deltaClass(session.totalEloChange)}">
               ${formatSignedDelta(session.totalEloChange)}
@@ -405,7 +418,7 @@
             <img class="avatar" src="${skinUrl(data.username)}" alt="" />
             <div class="identity">
               <div class="name">${escapeHtml(data.username)}</div>
-              <div class="rank" style="color: ${rankColor(data)}">${rankText(data)}</div>
+              ${rankBadge(data)}
             </div>
             <div class="elo">
               ${formatNumber(data.currentElo)}
@@ -432,7 +445,7 @@
             <img class="avatar" src="${skinUrl(data.username)}" alt="" />
             <div class="identity">
               <div class="name">${escapeHtml(data.username)}</div>
-              <div class="rank" style="color: ${rankColor(data)}">${rankText(data)}</div>
+              ${rankBadge(data)}
             </div>
             <div class="elo">
               ${formatNumber(data.currentElo)}
@@ -497,6 +510,23 @@
       function rankText(data) {
         const rank = data.currentRank == null ? "Unranked" : `#${data.currentRank}`;
         return data.rankName ? `${data.rankName} · ${rank}` : rank;
+      }
+
+      function rankBadge(data) {
+        return `
+          <div class="rank" style="color: ${rankColor(data)}">
+            ${rankIconMarkup(data)}
+            <span class="rank-text">${rankText(data)}</span>
+          </div>
+        `;
+      }
+
+      function rankIconMarkup(data) {
+        const rankIconUrl = getRankIconUrl(data.rankName);
+
+        return rankIconUrl
+          ? `<img class="rank-icon" src="${rankIconUrl}" alt="" />`
+          : `<span class="rank-fallback" style="background: ${rankColor(data)}"></span>`;
       }
 
       function rankColor(data) {

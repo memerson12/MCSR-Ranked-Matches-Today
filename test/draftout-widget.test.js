@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   getDraftoutWidgetOptions,
@@ -6,6 +7,7 @@ import {
 } from "../routes/draftout.js";
 
 const baseNow = new Date("2026-05-25T20:00:00.000Z");
+const widgetHtml = readFileSync("public/draftout-widget.html", "utf8");
 
 test("summarizeDraftoutWidgetStats includes contiguous matches until a gap boundary", () => {
   const summary = summarizeDraftoutWidgetStats("Feinberg", pagesWithMatches([
@@ -146,6 +148,30 @@ test("getDraftoutWidgetOptions normalizes defaults and invalid query values", ()
 
   assert.equal(getDraftoutWidgetOptions({ mode: "bad-mode" }).mode, "compact");
 });
+
+test("compact and expanded widget templates render the shared rank badge", () => {
+  const compactTemplate = htmlBetween(
+    "function compactTemplate(data)",
+    "function expandedTemplate(data)"
+  );
+  const expandedTemplate = htmlBetween(
+    "function expandedTemplate(data)",
+    "function latestMeta(latest)"
+  );
+
+  assert.match(compactTemplate, /rankBadge\(data\)/);
+  assert.match(expandedTemplate, /rankBadge\(data\)/);
+});
+
+function htmlBetween(startMarker, endMarker) {
+  const start = widgetHtml.indexOf(startMarker);
+  const end = widgetHtml.indexOf(endMarker, start);
+
+  assert.notEqual(start, -1, `${startMarker} should exist`);
+  assert.notEqual(end, -1, `${endMarker} should exist`);
+
+  return widgetHtml.slice(start, end);
+}
 
 function pagesWithMatches(matches) {
   return [
