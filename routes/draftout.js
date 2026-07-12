@@ -2,8 +2,8 @@ import express from "express";
 import fetch from "node-fetch";
 import {
   getRequestContext,
-  recordDraftoutRequest,
-  recordDraftoutWidgetUserRequest,
+  instrumentDraftoutRequest,
+  instrumentDraftoutWidgetUserRequest,
   recordUpstreamRequest,
 } from "../utils/metrics.js";
 import { getChannelFromHeaders } from "../utils/headers_parser.js";
@@ -18,7 +18,7 @@ const DEFAULT_WIDGET_REFRESH_SECONDS = 30;
 const DEFAULT_WIDGET_ACCENT = "#58d5e8";
 
 router.get("/leaderboard", async (req, res) => {
-  recordDraftoutRequestOnFinish(req, res, "leaderboard");
+  prepareDraftoutRouteContext(req, res, "leaderboard");
 
   const top = getSingleQueryValue(req.query.top);
 
@@ -36,23 +36,21 @@ router.get("/leaderboard", async (req, res) => {
 });
 
 router.get("/widget", async (req, res) => {
-  recordDraftoutRequestOnFinish(req, res, "widget");
-
   const username = getSingleQueryValue(req.query.username);
   const options = getDraftoutWidgetOptions(req.query);
-  const channel = getChannelFromHeaders(req.headers) || "anonymous";
-  const requestContext = getRequestContext(res);
-  const signal = requestContext?.signal;
+  const { channel, requestContext, signal } = prepareDraftoutRouteContext(
+    req,
+    res,
+    "widget",
+    {
+      username: username || null,
+      gapHours: options.gapHours,
+    },
+  );
 
-  res.on("finish", () => {
-    recordDraftoutWidgetUserRequest(username, channel, res.statusCode);
-  });
-
-  requestContext?.setStage("before_upstream");
-  requestContext?.setLogContext({
+  instrumentDraftoutWidgetUserRequestIfPresent(requestContext, {
+    username,
     channel,
-    username: username || null,
-    gapHours: options.gapHours,
   });
 
   if (!username) {
@@ -90,28 +88,23 @@ router.get("/widget", async (req, res) => {
     });
 
     if (!res.headersSent) {
-      res
-        .status(502)
-        .json({ error: "Failed to fetch Draftout widget data" });
+      res.status(502).json({ error: "Failed to fetch Draftout widget data" });
     }
   }
 });
 
 router.get("/", async (req, res) => {
-  recordDraftoutRequestOnFinish(req, res, "stats");
-
   const username = getSingleQueryValue(req.query.username);
   const timeframe = getSingleQueryValue(req.query.timeframe);
-  const channel = getChannelFromHeaders(req.headers) || "anonymous";
-  const requestContext = getRequestContext(res);
-  const signal = requestContext?.signal;
-
-  requestContext?.setStage("before_upstream");
-  requestContext?.setLogContext({
-    channel,
-    username: username || null,
-    timeframe: timeframe || null,
-  });
+  const { requestContext, signal } = prepareDraftoutRouteContext(
+    req,
+    res,
+    "stats",
+    {
+      username: username || null,
+      timeframe: timeframe || null,
+    },
+  );
 
   if (!username) {
     return res.status(400).json({ error: "Username is required" });
@@ -168,6 +161,64 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/winstreak", async (req, res) => {
+  const username = getSingleQueryValue(req.query.username);
+  const { requestContext, signal } = prepareDraftoutRouteContext(
+    req,
+    res,
+    "winstreak",
+    { username: username || null },
+  );
+
+  if (!username) {
+    return res.status(400).json({ error: "Username is required" });
+  }
+
+  try {
+    requestContext?.setStage("fetch_draftout_stats");
+    const pages = await fetchDraftoutPagesUntilLastLoss(username, {
+      signal,
+      setAbortStage: requestContext?.setStage,
+    });
+
+    const firstPage = pages[0];
+
+    if (!firstPage?.player) {
+      return res
+        .status(404)
+        .json({ error: `No Draftout stats for ${username} were found` });
+    }
+
+    const peakWinstreak = firstPage.aggregate?.bestStreak ?? null;
+    const currentWinstreak = computeCurrentWinstreakFromPages(
+      pages,
+      firstPage.player,
+      username,
+    );
+
+    requestContext?.setStage("response_write");
+    res.status(200).json({
+      username: firstPage.player.username || username,
+      peakWinstreak,
+      currentWinstreak,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError" || signal?.aborted) {
+      return;
+    }
+
+    requestContext?.log("error", "draftout_winstreak_failed", {
+      error: error?.message || String(error),
+    });
+
+    if (!res.headersSent) {
+      res
+        .status(502)
+        .json({ error: "Failed to fetch Draftout winstreak data" });
+    }
+  }
+});
+
 async function fetchDraftoutLeaderboard(top) {
   const searchParams = new URLSearchParams({
     metric: DRAFTOUT_LEADERBOARD_METRIC,
@@ -179,7 +230,7 @@ async function fetchDraftoutLeaderboard(top) {
 
   const response = await recordUpstreamRequest(
     { upstream: "draftout", operation: "fetch_leaderboard" },
-    () => fetch(`${DRAFTOUT_API_BASE_URL}?${searchParams.toString()}`)
+    () => fetch(`${DRAFTOUT_API_BASE_URL}?${searchParams.toString()}`),
   );
 
   if (!response.ok) {
@@ -190,7 +241,39 @@ async function fetchDraftoutLeaderboard(top) {
 }
 
 async function fetchDraftoutStatPages(username, startDate, options = {}) {
-  const { signal, setAbortStage } = options;
+  return fetchDraftoutPages(username, {
+    ...options,
+    stage: "fetch_draftout_stats",
+    shouldStop: ({ page }) =>
+      !page.player || !startDate || pageContainsMatchBefore(page, startDate),
+  });
+}
+
+async function fetchDraftoutWidgetPages(username, gapHours, options = {}) {
+  return fetchDraftoutPages(username, {
+    ...options,
+    stage: "fetch_draftout_widget_stats",
+    shouldStop: ({ page, pages }) =>
+      !page.player ||
+      widgetPagesContainSessionBoundary(pages, gapHours, new Date()),
+  });
+}
+
+async function fetchDraftoutPagesUntilLastLoss(username, options = {}) {
+  let player = null;
+
+  return fetchDraftoutPages(username, {
+    ...options,
+    stage: "fetch_draftout_stats",
+    shouldStop: ({ page }) => {
+      player ??= page.player ?? null;
+      return pageContainsLossForPlayer(page, player, username);
+    },
+  });
+}
+
+async function fetchDraftoutPages(username, options = {}) {
+  const { signal, setAbortStage, stage, shouldStop } = options;
   const pages = [];
   let pageNumber = 1;
   let totalPages = 1;
@@ -205,20 +288,15 @@ async function fetchDraftoutStatPages(username, startDate, options = {}) {
       throw new Error("Draftout pagination exceeded safe page limit");
     }
 
-    setAbortStage?.("fetch_draftout_stats");
+    setAbortStage?.(stage);
     const page = await fetchDraftoutStatPage(username, pageNumber, { signal });
     pages.push(page);
 
-    if (!page.player) {
+    if (shouldStop?.({ page, pages, pageNumber }) === true) {
       break;
     }
 
     totalPages = getSafeTotalPages(page.totalPages);
-
-    if (!startDate || pageContainsMatchBefore(page, startDate)) {
-      break;
-    }
-
     pageNumber++;
     shouldContinue = pageNumber <= totalPages;
   }
@@ -226,41 +304,37 @@ async function fetchDraftoutStatPages(username, startDate, options = {}) {
   return pages;
 }
 
-async function fetchDraftoutWidgetPages(username, gapHours, options = {}) {
-  const { signal, setAbortStage } = options;
-  const pages = [];
-  let pageNumber = 1;
-  let totalPages = 1;
-  let shouldContinue = true;
+function pageContainsLossForPlayer(page, player, requestedUsername) {
+  const matches = Array.isArray(page.matches) ? page.matches : [];
 
-  while (shouldContinue) {
-    if (signal?.aborted) {
-      throw createAbortError(signal.reason);
+  return matches.some((match) => {
+    const participant = findPlayerParticipant(match, player, requestedUsername);
+    return participant && participant.won === false;
+  });
+}
+
+function computeCurrentWinstreakFromPages(pages, player, requestedUsername) {
+  const matches = getSortedDraftoutMatches(pages);
+  let streak = 0;
+
+  for (const match of matches) {
+    const participant = findPlayerParticipant(match, player, requestedUsername);
+
+    if (!participant) {
+      continue;
     }
 
-    if (pageNumber > MAX_DRAFTOUT_PAGES) {
-      throw new Error("Draftout pagination exceeded safe page limit");
+    if (participant.won === false) {
+      break; // reached last loss
     }
 
-    setAbortStage?.("fetch_draftout_widget_stats");
-    const page = await fetchDraftoutStatPage(username, pageNumber, { signal });
-    pages.push(page);
-
-    if (!page.player) {
-      break;
+    if (participant.won === true) {
+      streak++;
     }
-
-    totalPages = getSafeTotalPages(page.totalPages);
-
-    if (widgetPagesContainSessionBoundary(pages, gapHours, new Date())) {
-      break;
-    }
-
-    pageNumber++;
-    shouldContinue = pageNumber <= totalPages;
+    // draws (participant.won undefined) do not break the streak but do not increment it
   }
 
-  return pages;
+  return streak;
 }
 
 export function summarizeDraftoutLeaderboard(data) {
@@ -276,18 +350,18 @@ export function summarizeDraftoutLeaderboard(data) {
       (entry) =>
         entry.username &&
         Number.isFinite(entry.rank) &&
-        Number.isFinite(entry.elo)
+        Number.isFinite(entry.elo),
     );
 }
 
 export function summarizeDraftoutWidgetStats(
   requestedUsername,
   pages,
-  options = {}
+  options = {},
 ) {
   const gapHours = normalizePositiveNumber(
     options.gapHours,
-    DEFAULT_WIDGET_GAP_HOURS
+    DEFAULT_WIDGET_GAP_HOURS,
   );
   const now = options.now instanceof Date ? options.now : new Date();
   const firstPage = pages[0] ?? {};
@@ -295,18 +369,22 @@ export function summarizeDraftoutWidgetStats(
   const record = firstPage.record ?? {};
   const aggregate = firstPage.aggregate ?? {};
   const allMatches = getSortedDraftoutMatches(pages);
-  const activeSessionMatches = getActiveSessionMatches(allMatches, gapHours, now);
+  const activeSessionMatches = getActiveSessionMatches(
+    allMatches,
+    gapHours,
+    now,
+  );
   const hasActiveSession = activeSessionMatches.length > 0;
   const session = summarizeDraftoutSessionMatches(
     activeSessionMatches,
     player,
-    requestedUsername
+    requestedUsername,
   );
   const latestMatch = hasActiveSession
     ? summarizeLatestDraftoutMatch(
         activeSessionMatches[0],
         player,
-        requestedUsername
+        requestedUsername,
       )
     : null;
 
@@ -325,8 +403,9 @@ export function summarizeDraftoutWidgetStats(
       wins: record.wins ?? 0,
       losses: record.losses ?? 0,
       draws: record.draws ?? 0,
-      winRate:
-        Number.isFinite(record.winRate) ? Math.round(record.winRate * 100) : 0,
+      winRate: Number.isFinite(record.winRate)
+        ? Math.round(record.winRate * 100)
+        : 0,
     },
     aggregate: {
       peakElo: aggregate.peakElo ?? null,
@@ -346,11 +425,11 @@ export function getDraftoutWidgetOptions(query) {
     mode,
     gapHours: normalizePositiveNumber(
       getSingleQueryValue(query.gapHours),
-      DEFAULT_WIDGET_GAP_HOURS
+      DEFAULT_WIDGET_GAP_HOURS,
     ),
     refreshSeconds: normalizePositiveNumber(
       getSingleQueryValue(query.refreshSeconds),
-      DEFAULT_WIDGET_REFRESH_SECONDS
+      DEFAULT_WIDGET_REFRESH_SECONDS,
     ),
     accent: normalizeAccent(getSingleQueryValue(query.accent)),
   };
@@ -363,11 +442,11 @@ async function fetchDraftoutStatPage(username, page, options = {}) {
     filter: DRAFTOUT_FILTER,
   });
   const url = `${DRAFTOUT_API_BASE_URL}/${encodeURIComponent(
-    username
+    username,
   )}?${searchParams.toString()}`;
   const response = await recordUpstreamRequest(
     { upstream: "draftout", operation: "fetch_stats" },
-    () => fetch(url, { signal })
+    () => fetch(url, { signal }),
   );
 
   if (!response.ok) {
@@ -381,7 +460,7 @@ export function summarizeDraftoutStats(
   requestedUsername,
   timeframe,
   startDate,
-  pages
+  pages,
 ) {
   const firstPage = pages[0] ?? {};
   const player = firstPage.player ?? {};
@@ -399,7 +478,11 @@ export function summarizeDraftoutStats(
         continue;
       }
 
-      const participant = findPlayerParticipant(match, player, requestedUsername);
+      const participant = findPlayerParticipant(
+        match,
+        player,
+        requestedUsername,
+      );
       if (!participant) {
         continue;
       }
@@ -524,7 +607,8 @@ function findOpponentParticipant(match, participant) {
   }
 
   return (
-    participants.find((candidate) => candidate.uuid !== participant.uuid) ?? null
+    participants.find((candidate) => candidate.uuid !== participant.uuid) ??
+    null
   );
 }
 
@@ -570,14 +654,18 @@ function widgetPagesContainSessionBoundary(pages, gapHours, now) {
     return true;
   }
 
-  return getActiveSessionMatches(matches, gapHours, now).length < matches.length;
+  return (
+    getActiveSessionMatches(matches, gapHours, now).length < matches.length
+  );
 }
 
 function getSortedDraftoutMatches(pages) {
   return pages
     .flatMap((page) => (Array.isArray(page.matches) ? page.matches : []))
     .filter((match) => Number.isFinite(Number(match.completedAt)))
-    .sort((left, right) => Number(right.completedAt) - Number(left.completedAt));
+    .sort(
+      (left, right) => Number(right.completedAt) - Number(left.completedAt),
+    );
 }
 
 function getCompletedAtDate(match) {
@@ -702,18 +790,41 @@ function getSingleQueryValue(value) {
   return typeof value === "string" ? value.trim() : null;
 }
 
-function recordDraftoutRequestOnFinish(req, res, endpoint) {
-  const channel = getChannelFromHeaders(req.headers) || "anonymous";
-
-  res.on("finish", () => {
-    recordDraftoutRequest(channel, endpoint, res.statusCode);
-  });
-}
-
 function createAbortError(reason) {
   const error = new Error(reason || "aborted");
   error.name = "AbortError";
   return error;
+}
+
+function prepareDraftoutRouteContext(req, res, endpoint, logContext = {}) {
+  const channel = getChannelFromHeaders(req.headers) || "anonymous";
+  const requestContext = getRequestContext(res);
+
+  requestContext?.setStage("before_upstream");
+  requestContext?.setLogContext({ channel, ...logContext });
+  instrumentDraftoutRequestIfPresent(requestContext, { channel, endpoint });
+
+  return {
+    channel,
+    requestContext,
+    signal: requestContext?.signal,
+  };
+}
+
+function instrumentDraftoutRequestIfPresent(requestContext, options) {
+  if (!requestContext) {
+    return;
+  }
+
+  instrumentDraftoutRequest(requestContext, options);
+}
+
+function instrumentDraftoutWidgetUserRequestIfPresent(requestContext, options) {
+  if (!requestContext) {
+    return;
+  }
+
+  instrumentDraftoutWidgetUserRequest(requestContext, options);
 }
 
 export default router;

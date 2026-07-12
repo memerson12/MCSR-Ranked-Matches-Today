@@ -108,6 +108,9 @@ function routeLabelFor(req) {
     return "/api/draftout/leaderboard";
   }
   if (req.path === "/api/draftout/widget") return "/api/draftout/widget";
+  if (req.path === "/api/draftout/winstreak") {
+    return "/api/draftout/winstreak";
+  }
   return "unmatched";
 }
 
@@ -325,6 +328,25 @@ export function recordDraftoutRequest(channel, endpoint, statusCode) {
     channel: channel || "anonymous",
     endpoint,
     status_code: String(statusCode),
+  });
+}
+
+export function instrumentDraftoutRequest(requestContext, { channel, endpoint }) {
+  requestContext.addLifecycleRecorder({
+    onFinish: ({ statusCode }) => {
+      recordDraftoutRequest(channel, endpoint, statusCode);
+    },
+  });
+}
+
+export function instrumentDraftoutWidgetUserRequest(
+  requestContext,
+  { username, channel },
+) {
+  requestContext.addLifecycleRecorder({
+    onFinish: ({ statusCode }) => {
+      recordDraftoutWidgetUserRequest(username, channel, statusCode);
+    },
   });
 }
 
