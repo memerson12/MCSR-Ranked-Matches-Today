@@ -7,7 +7,7 @@ It includes four main functionalities:
 1. **World Records Fetching** (`world_records.js`)
 2. **Match Statistics Fetching** (`matches.js`)
 3. **Draftout Match Statistics Fetching** (`draftout.js`)
-4. **Draftout OBS Widget** (`public/draftout-widget.html`)
+4. [**Draftout OBS Widget**](https://mcsr-stats.memerson.xyz/draftout-widget-config.html) (`public/draftout-widget.html`)
 
 ## World Records Fetching
 
@@ -190,6 +190,7 @@ If `top` is invalid, `/api/draftout/leaderboard` returns `400`. If `username` is
 The app serves a browser-source widget for OBS. Use these paths on whatever host is serving the app:
 
 - Config page: `/draftout-widget-config.html`
+  - https://mcsr-stats.memerson.xyz/draftout-widget-config.html
 - Overlay page: `/draftout-widget.html`
 
 Use the config page to choose:

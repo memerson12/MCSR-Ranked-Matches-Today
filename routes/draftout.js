@@ -250,12 +250,20 @@ async function fetchDraftoutStatPages(username, startDate, options = {}) {
 }
 
 async function fetchDraftoutWidgetPages(username, gapHours, options = {}) {
+  let player = null;
+
   return fetchDraftoutPages(username, {
     ...options,
     stage: "fetch_draftout_widget_stats",
-    shouldStop: ({ page, pages }) =>
-      !page.player ||
-      widgetPagesContainSessionBoundary(pages, gapHours, new Date()),
+    shouldStop: ({ page, pages }) => {
+      player ??= page.player ?? null;
+
+      return (
+        !page.player ||
+        (widgetPagesContainSessionBoundary(pages, gapHours, new Date()) &&
+          pagesContainLossForPlayer(pages, player, username))
+      );
+    },
   });
 }
 
@@ -309,8 +317,14 @@ function pageContainsLossForPlayer(page, player, requestedUsername) {
 
   return matches.some((match) => {
     const participant = findPlayerParticipant(match, player, requestedUsername);
-    return participant && participant.won === false;
+    return isLossForPlayer(match, participant);
   });
+}
+
+function pagesContainLossForPlayer(pages, player, requestedUsername) {
+  return pages.some((page) =>
+    pageContainsLossForPlayer(page, player, requestedUsername),
+  );
 }
 
 function computeCurrentWinstreakFromPages(pages, player, requestedUsername) {
@@ -324,14 +338,14 @@ function computeCurrentWinstreakFromPages(pages, player, requestedUsername) {
       continue;
     }
 
-    if (participant.won === false) {
+    if (isLossForPlayer(match, participant)) {
       break; // reached last loss
     }
 
     if (participant.won === true) {
       streak++;
     }
-    // draws (participant.won undefined) do not break the streak but do not increment it
+    // draws do not break the streak but do not increment it
   }
 
   return streak;
@@ -377,6 +391,11 @@ export function summarizeDraftoutWidgetStats(
   const hasActiveSession = activeSessionMatches.length > 0;
   const session = summarizeDraftoutSessionMatches(
     activeSessionMatches,
+    player,
+    requestedUsername,
+  );
+  session.currentWinStreak = computeCurrentWinstreakFromPages(
+    pages,
     player,
     requestedUsername,
   );
@@ -718,6 +737,10 @@ function isDraw(match) {
     ? match.participants
     : [];
   return !participants.some((participant) => participant.won === true);
+}
+
+function isLossForPlayer(match, participant) {
+  return Boolean(participant) && !isDraw(match) && participant.won === false;
 }
 
 function isMatchInsideWindow(match, startDate) {

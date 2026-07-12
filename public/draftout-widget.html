@@ -209,12 +209,20 @@
       }
 
       .compact-stats {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
         gap: 10px;
         margin-top: 10px;
         padding-top: 9px;
         border-top: 1px solid var(--line);
+      }
+
+      .compact-stat-group {
+        display: flex;
+        align-items: baseline;
+        gap: 9px;
+        min-width: 0;
       }
 
       .compact-stat {
@@ -225,6 +233,14 @@
         font-weight: 750;
       }
 
+      .compact-stat.is-streak {
+        justify-self: center;
+      }
+
+      .compact-stat.is-session {
+        justify-self: end;
+      }
+
       .compact-stat span {
         color: var(--muted);
         font-size: 10px;
@@ -233,7 +249,7 @@
 
       .grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: 1.1fr 0.8fr 0.8fr 1.3fr;
         gap: 8px;
         margin-top: 14px;
       }
@@ -260,6 +276,11 @@
         font-size: 18px;
         font-weight: 900;
         line-height: 1;
+      }
+
+      .value.is-record {
+        font-size: 16px;
+        white-space: nowrap;
       }
 
       .latest {
@@ -402,7 +423,7 @@
         return `
           <section class="ultra-row">
             ${rankIconMarkup(data)}
-            <div class="ultra-elo">${formatNumber(data.currentElo)} <span>elo</span></div>
+            <div class="ultra-elo">${formatElo(data.currentElo)} <span>elo</span></div>
             <div class="ultra-delta ${deltaClass(session.totalEloChange)}">
               ${formatSignedDelta(session.totalEloChange)}
             </div>
@@ -421,17 +442,20 @@
               ${rankBadge(data)}
             </div>
             <div class="elo">
-              ${formatNumber(data.currentElo)}
+              ${formatElo(data.currentElo)}
               <div class="delta ${deltaClass(session.totalEloChange)}">
                 ${formatDelta(session.totalEloChange)}
               </div>
             </div>
           </section>
           <section class="compact-stats">
-            <div class="compact-stat"><span>W</span>${session.wonMatchesCount}</div>
-            <div class="compact-stat"><span>L</span>${session.lossMatchesCount}</div>
-            <div class="compact-stat"><span>D</span>${session.drawCount}</div>
-            <div class="compact-stat"><span>Session</span>${session.totalMatchesCount}</div>
+            <div class="compact-stat-group">
+              <div class="compact-stat"><span>W</span>${session.wonMatchesCount}</div>
+              <div class="compact-stat"><span>L</span>${session.lossMatchesCount}</div>
+              <div class="compact-stat"><span>D</span>${session.drawCount}</div>
+            </div>
+            <div class="compact-stat is-streak"><span>Streak</span>${session.currentWinStreak}</div>
+            <div class="compact-stat is-session"><span>Session</span>${session.totalMatchesCount}</div>
           </section>
         `;
       }
@@ -448,17 +472,17 @@
               ${rankBadge(data)}
             </div>
             <div class="elo">
-              ${formatNumber(data.currentElo)}
+              ${formatElo(data.currentElo)}
               <div class="delta ${deltaClass(session.totalEloChange)}">
                 ${formatDelta(session.totalEloChange)}
               </div>
             </div>
           </section>
           <section class="grid">
-            <div class="tile"><div class="label">W-L-D</div><div class="value">${session.wonMatchesCount}-${session.lossMatchesCount}-${session.drawCount}</div></div>
+            <div class="tile"><div class="label">W-L-D</div><div class="value is-record">${session.wonMatchesCount}-${session.lossMatchesCount}-${session.drawCount}</div></div>
             <div class="tile"><div class="label">Winrate</div><div class="value">${session.winRate}%</div></div>
             <div class="tile"><div class="label">Streak</div><div class="value">${session.currentWinStreak}</div></div>
-            <div class="tile"><div class="label">Overall</div><div class="value">${data.overall.wins}-${data.overall.losses}-${data.overall.draws}</div></div>
+            <div class="tile"><div class="label">Overall</div><div class="value is-record">${data.overall.wins}-${data.overall.losses}-${data.overall.draws}</div></div>
           </section>
           <section class="latest">
             <div>
@@ -561,8 +585,9 @@
         return `https://mineskin.eu/helm/${encodeURIComponent(username)}/100.png`;
       }
 
-      function formatNumber(value) {
-        return Number.isFinite(Number(value)) ? Number(value).toLocaleString() : "-";
+      function formatElo(value) {
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? String(Math.trunc(numeric)) : "-";
       }
 
       function formatDelta(value) {
