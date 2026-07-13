@@ -22,7 +22,7 @@ window.COMMAND_CATALOG = [
     trigger: "!weekly",
     description:
       "Your position and progress in the current MCSR Ranked weekly race.",
-    example: "{{username}} is #12 in the weekly race with 248 points.",
+    example: "PB: 12:34.567 - WR: 08:42.123 by RunnerOne",
     commands: {
       fossabot:
         "$(eval r=$(customapi https://mcsrranked.com/api/weekly-race/); tUName='$(channel.display_name)'; mcUName='{{username}}'; $(customapi https://pastebin.com/raw/YhecbnTp))",
