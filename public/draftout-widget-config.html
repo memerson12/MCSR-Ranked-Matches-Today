@@ -319,6 +319,7 @@
         gap: 10px;
         margin-top: auto;
         padding-top: 32px;
+        border-top: 1px solid var(--line);
         color: var(--muted);
         font-size: 13px;
       }
@@ -453,13 +454,17 @@
       </div>
 
       <footer class="footer">
+        <span>MCSR Stats</span>
+        <span>·</span>
+        <a href="/">Home</a>
+        <span>·</span>
         <a
           href="https://github.com/memerson12/MCSR-Ranked-Matches-Today"
           target="_blank"
           rel="noreferrer"
           >GitHub</a
         >
-        <span>◦</span>
+        <span>·</span>
         <span>Discord: memerson_</span>
       </footer>
     </main>
@@ -479,7 +484,7 @@
         themeLabel: document.getElementById("themeLabel"),
       };
 
-      applyTheme(localStorage.getItem("draftoutWidgetConfigTheme") || "light");
+      applyTheme(localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
 
       document
         .querySelectorAll("input")
@@ -489,6 +494,9 @@
         .forEach((input) => input.addEventListener("change", update));
       controls.copy.addEventListener("click", copyUrl);
       controls.themeToggle.addEventListener("click", toggleTheme);
+      addEventListener("storage", (event) => {
+        if (event.key === "theme" && event.newValue) applyTheme(event.newValue, false);
+      });
 
       update();
 
@@ -539,10 +547,10 @@
         applyTheme(currentTheme === "dark" ? "light" : "dark");
       }
 
-      function applyTheme(theme) {
+      function applyTheme(theme, persist = true) {
         const normalizedTheme = theme === "dark" ? "dark" : "light";
         document.documentElement.dataset.theme = normalizedTheme;
-        localStorage.setItem("draftoutWidgetConfigTheme", normalizedTheme);
+        if (persist) localStorage.setItem("theme", normalizedTheme);
         controls.themeLabel.textContent =
           normalizedTheme === "dark" ? "Light" : "Dark";
         controls.themeToggle.querySelector(".icon").textContent =

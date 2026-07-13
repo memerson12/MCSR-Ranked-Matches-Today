@@ -118,4 +118,15 @@ window.COMMAND_CATALOG = [
         "$(eval r=$(customapi https://mcsr-stats.memerson.xyz/api/world_records); `1.16 RSG Any% - ${r['any%_1.16+_rsg']['igt']} by ${r['any%_1.16+_rsg']['runner']} | 1.16 RSG AA - ${r['aa_1.16_rsg']['igt']} by ${r['aa_1.16_rsg']['runner']}`)",
     },
   },
+  {
+    id: "axolotl",
+    category: "Misc",
+    name: "Axolotl roll",
+    trigger: "!axolotl",
+    description: "Roll a random axolotl emote and add it to the Axolotl stats.",
+    example: "axoDance3",
+    commands: {
+      fossabot: "$(customapi https://mcsr-stats.memerson.xyz/api/axolotls)",
+    },
+  },
 ];

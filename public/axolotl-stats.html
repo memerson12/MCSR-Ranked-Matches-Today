@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Axolotl Stats</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,500,0,0" />
+    <style>
+      :root {
+        --primary-color: #ff69b4;
+        --secondary-color: #237a57;
+        --background-color: #f5f5f5;
+        --card-background: #ffffff;
+        --text-color: #333;
+        --line-color: #eee;
+      }
+
+      :root[data-theme="dark"] { color-scheme: dark; --background-color: #15181c; --card-background: #1d2126; --text-color: #eef0f2; --line-color: #363c44; --secondary-color: #71c9a4; }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background-color: var(--background-color);
+        color: var(--text-color);
+        line-height: 1.6;
+      }
+
+      .container {
+        width: 100%;
+        flex: 1;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+
+      .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
+      .home-link { color: var(--text-color); font-weight: 700; text-decoration: none; }
+      .home-link span { color: var(--secondary-color); }
+      .theme-toggle { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border: 1px solid var(--line-color); border-radius: 5px; color: var(--text-color); background: var(--card-background); cursor: pointer; }
+      .material-symbols-outlined { font-family: "Material Symbols Outlined"; font-size: 18px; font-weight: normal; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; white-space: nowrap; font-feature-settings: "liga"; -webkit-font-smoothing: antialiased; }
+
+      .header {
+        text-align: center;
+        margin-bottom: 3rem;
+      }
+
+      .header h1 {
+        color: var(--primary-color);
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+      }
+
+      .stats-card {
+        background: var(--card-background);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease;
+      }
+
+      .stats-card:hover {
+        transform: translateY(-5px);
+      }
+
+      .stats-card h2 {
+        color: var(--secondary-color);
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+      }
+
+      .stats-list {
+        list-style: none;
+      }
+
+      .stats-list li {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--line-color);
+      }
+
+      .stats-list li:last-child {
+        border-bottom: none;
+      }
+
+      .loading {
+        text-align: center;
+        font-size: 1.2rem;
+        color: var(--secondary-color);
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 1rem;
+        }
+
+        .header h1 {
+          font-size: 2rem;
+        }
+      }
+
+      footer {
+        margin-top: auto;
+        padding: 1.5rem 1rem;
+        border-top: 1px solid var(--line-color);
+        text-align: center;
+        color: #66717f;
+        font-size: 0.86rem;
+      }
+
+      footer a { color: var(--secondary-color); }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <nav class="topbar"><a class="home-link" href="/">MCSR <span>Stats</span></a><button class="theme-toggle" id="theme-toggle" type="button"><span class="material-symbols-outlined" aria-hidden="true">dark_mode</span><span class="theme-label">Dark</span></button></nav>
+      <header class="header">
+        <h1>🦎 Axolotl Stats</h1>
+        <p>Track your axolotl collection and statistics</p>
+      </header>
+
+      <div class="stats-grid">
+        <div class="stats-card">
+          <h2>Global Stats</h2>
+          <ul class="stats-list" id="globalStats">
+            <li>Loading...</li>
+          </ul>
+        </div>
+
+        <div class="stats-card">
+          <h2>Top Channels</h2>
+          <ul class="stats-list" id="topChannels">
+            <li>Loading...</li>
+          </ul>
+        </div>
+
+        <div class="stats-card">
+          <h2>Leaderboard</h2>
+          <ul class="stats-list" id="leaderboard">
+            <li>Loading...</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const themeButton = document.querySelector("#theme-toggle");
+      const themeIcon = themeButton.querySelector(".material-symbols-outlined");
+      const themeLabel = themeButton.querySelector(".theme-label");
+      function applyTheme(theme) {
+        const normalized = theme === "dark" ? "dark" : "light";
+        document.documentElement.dataset.theme = normalized;
+        themeIcon.textContent = normalized === "dark" ? "light_mode" : "dark_mode";
+        themeLabel.textContent = normalized === "dark" ? "Light" : "Dark";
+      }
+      applyTheme(localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+      themeButton.addEventListener("click", () => {
+        const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        localStorage.setItem("theme", theme);
+        applyTheme(theme);
+      });
+      addEventListener("storage", (event) => { if (event.key === "theme" && event.newValue) applyTheme(event.newValue); });
+
+      async function fetchStats() {
+        try {
+          const response = await fetch("/api/axolotls/stats");
+          const data = await response.json();
+
+          // Update Global Stats
+          document.getElementById("globalStats").innerHTML = `
+                    <li>Total Rolls: ${data.total_rolls.toLocaleString()}</li>
+                    <li>Unique Users: ${data.unique_users.toLocaleString()}</li>
+                `;
+
+          // Update Top Channels
+          document.getElementById("topChannels").innerHTML = data.top_channels
+            .map(
+              (channel) => `
+                        <li>${
+                          channel.channel
+                        }: ${channel.total_rolls.toLocaleString()} rolls</li>
+                    `
+            )
+            .join("");
+
+          // Update Leaderboard
+          document.getElementById("leaderboard").innerHTML = data.leaderboard
+            .slice(0, 10)
+            .map(
+              (user, index) => `
+                        <li>${index + 1}. ${
+                user.username
+              }: ${user.total_rolls.toLocaleString()} rolls</li>
+                    `
+            )
+            .join("");
+        } catch (error) {
+          console.error("Error fetching stats:", error);
+        }
+      }
+
+      // Fetch stats on page load
+      fetchStats();
+
+      // Refresh stats every 5 minutes
+      setInterval(fetchStats, 300000);
+    </script>
+
+    <footer>MCSR Stats · <a href="/">Home</a> · <a href="https://github.com/memerson12/MCSR-Ranked-Matches-Today" target="_blank" rel="noreferrer">GitHub</a> · Discord: memerson_</footer>
+  </body>
+</html>

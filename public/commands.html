@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Generate ready-to-paste MCSR Ranked and Draftout chat bot commands." />
     <title>Chat Commands · MCSR Stats</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,500,0,0" />
     <style>
       :root { color-scheme: light; --bg: #f6f7f8; --panel: #fff; --soft: #f0f2f4; --code: #f6f7f8; --line: #d9dde2; --text: #20242a; --muted: #66717f; --accent: #237a57; --accent-text: #fff; --danger: #b42318; }
       :root[data-theme="dark"] { color-scheme: dark; --bg: #15181c; --panel: #1d2126; --soft: #282d33; --code: #171a1e; --line: #363c44; --text: #eef0f2; --muted: #a3abb5; --accent: #71c9a4; --accent-text: #10271e; --danger: #ff9b92; }
@@ -16,9 +17,9 @@
       nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 56px; }
       .brand { text-decoration: none; font-weight: 700; }
       .brand span { color: var(--accent); }
-      .nav-actions { display: flex; align-items: center; gap: 18px; }
-      .back { color: var(--muted); font-size: .9rem; text-decoration: none; }
-      .theme-toggle { padding: 6px 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--text); background: var(--panel); cursor: pointer; }
+      .nav-actions { display: flex; align-items: center; }
+      .theme-toggle { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--text); background: var(--panel); cursor: pointer; }
+      .material-symbols-outlined { font-family: "Material Symbols Outlined"; font-size: 18px; font-weight: normal; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; white-space: nowrap; word-wrap: normal; direction: ltr; font-feature-settings: "liga"; -webkit-font-smoothing: antialiased; }
       header { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 64px; align-items: end; margin-bottom: 44px; }
       .header-copy { max-width: 650px; }
       .eyebrow { color: var(--accent); font-size: .85rem; font-weight: 700; }
@@ -63,14 +64,14 @@
       .copy:hover { border-color: var(--accent); }
       .copy.copied { color: var(--accent); }
       .copy:disabled { color: var(--muted); cursor: not-allowed; opacity: .65; }
-      footer { color: var(--muted); text-align: center; margin-top: 56px; font-size: .86rem; }
+      footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); text-align: center; font-size: .86rem; }
       @media (max-width: 840px) { header { grid-template-columns: 1fr; gap: 24px; } .setup { max-width: 560px; } }
-      @media (max-width: 720px) { nav { margin-bottom: 40px; } .back { display: none; } .card { grid-template-columns: 1fr; gap: 14px; } .card-output { grid-column: auto; display: flex; } .copy { margin-top: 0; } .shell { width: calc(100% - 20px); padding-top: 18px; } }
+      @media (max-width: 720px) { nav { margin-bottom: 40px; } .card { grid-template-columns: 1fr; gap: 14px; } .card-output { grid-column: auto; display: flex; } .copy { margin-top: 0; } .shell { width: calc(100% - 20px); padding-top: 18px; } }
     </style>
   </head>
   <body>
     <main class="shell">
-      <nav><a class="brand" href="/">MCSR <span>Stats</span></a><div class="nav-actions"><a class="back" href="/">Back to stats</a><button class="theme-toggle" id="theme-toggle" type="button">Dark mode</button></div></nav>
+      <nav><a class="brand" href="/">MCSR <span>Stats</span></a><div class="nav-actions"><button class="theme-toggle" id="theme-toggle" type="button"><span class="material-symbols-outlined" aria-hidden="true">dark_mode</span><span class="theme-label">Dark</span></button></div></nav>
       <header>
         <div class="header-copy">
           <div class="eyebrow">Chat bot commands</div>
@@ -84,13 +85,15 @@
       </header>
       <div class="summary"><h2>Available commands</h2><span id="count"></span></div>
       <section id="commands" aria-live="polite"></section>
-      <footer>Built for the MCSR community · <a href="https://github.com/memerson12/MCSR-Ranked-Matches-Today">View source</a></footer>
+      <footer>MCSR Stats · <a href="/">Home</a> · <a href="https://github.com/memerson12/MCSR-Ranked-Matches-Today" target="_blank" rel="noreferrer">GitHub</a> · Discord: memerson_</footer>
     </main>
     <script src="/command-data.js"></script>
     <script>
       const usernameInput = document.querySelector("#username");
       const container = document.querySelector("#commands");
       const themeButton = document.querySelector("#theme-toggle");
+      const themeIcon = themeButton.querySelector(".material-symbols-outlined");
+      const themeLabel = themeButton.querySelector(".theme-label");
       const selectedRecords = new Set(
         window.COMMAND_CATALOG.flatMap((item) =>
           (item.records || []).filter((record) => record.default).map((record) => record.id)
@@ -99,8 +102,13 @@
 
       const savedTheme = localStorage.getItem("theme");
       const initialTheme = savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-      document.documentElement.dataset.theme = initialTheme;
-      themeButton.textContent = initialTheme === "dark" ? "Light mode" : "Dark mode";
+      function applyTheme(theme) {
+        const normalized = theme === "dark" ? "dark" : "light";
+        document.documentElement.dataset.theme = normalized;
+        themeIcon.textContent = normalized === "dark" ? "light_mode" : "dark_mode";
+        themeLabel.textContent = normalized === "dark" ? "Light" : "Dark";
+      }
+      applyTheme(initialTheme);
 
       function selectedRecordsFor(item) {
         return (item.records || []).filter((record) => selectedRecords.has(record.id));
@@ -178,10 +186,10 @@
 
       themeButton.addEventListener("click", () => {
         const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-        document.documentElement.dataset.theme = theme;
         localStorage.setItem("theme", theme);
-        themeButton.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+        applyTheme(theme);
       });
+      addEventListener("storage", (event) => { if (event.key === "theme" && event.newValue) applyTheme(event.newValue); });
 
       usernameInput.addEventListener("input", render);
       container.addEventListener("change", (event) => {
