@@ -19,18 +19,16 @@
       .nav-actions { display: flex; align-items: center; gap: 18px; }
       .back { color: var(--muted); font-size: .9rem; text-decoration: none; }
       .theme-toggle { padding: 6px 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--text); background: var(--panel); cursor: pointer; }
-      header { max-width: 760px; margin-bottom: 36px; }
+      header { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 64px; align-items: end; margin-bottom: 44px; }
+      .header-copy { max-width: 650px; }
       .eyebrow { color: var(--accent); font-size: .85rem; font-weight: 700; }
       h1 { margin: 8px 0 10px; font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; letter-spacing: -.03em; }
-      header p { color: var(--muted); max-width: 620px; }
-      .setup { display: grid; grid-template-columns: minmax(220px, 1fr) auto; gap: 18px; padding: 18px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; }
+      header p { margin-bottom: 0; color: var(--muted); max-width: 620px; }
+      .setup { padding: 18px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; }
       label { display: block; color: var(--muted); font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
       input { width: 100%; min-height: 44px; padding: 0 12px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; outline: none; }
       input:focus { border-color: var(--accent); }
-      .switch { display: flex; padding: 3px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
-      .switch button { min-width: 104px; border: 0; border-radius: 4px; color: var(--muted); background: transparent; cursor: pointer; font-weight: 600; }
-      .switch button.active { color: var(--accent-text); background: var(--accent); }
-      .summary { display: flex; justify-content: space-between; align-items: end; margin: 40px 0 24px; }
+      .summary { display: flex; justify-content: space-between; align-items: end; margin: 0 0 24px; }
       .summary h2 { margin: 0; font-size: 1.25rem; }
       #count { color: var(--muted); font-size: .9rem; }
       .command-group { margin-bottom: 34px; }
@@ -44,6 +42,12 @@
       h3 { margin: 0; font-size: 1.15rem; }
       .trigger { white-space: nowrap; color: var(--muted); background: var(--soft); padding: 4px 8px; border-radius: 4px; font: .75rem ui-monospace, SFMono-Regular, Menlo, monospace; }
       .description { margin: 10px 0 0; color: var(--muted); font-size: .86rem; }
+      .record-options { display: grid; gap: 5px; margin: 12px 0 0; padding: 0; border: 0; }
+      .record-options legend { margin-bottom: 4px; color: var(--muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+      .record-option { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: .76rem; font-weight: 400; text-transform: none; letter-spacing: 0; cursor: pointer; }
+      .record-option input { width: 14px; min-height: 14px; margin: 0; accent-color: var(--accent); }
+      .record-sources { margin: 10px 0 0; color: var(--muted); font-size: .7rem; }
+      .record-sources a { color: var(--accent); }
       .column-label { display: block; margin-bottom: 6px; color: var(--muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
       pre { max-height: 130px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; padding: 10px; background: var(--code); border: 1px solid var(--line); border-radius: 5px; color: var(--text); font: .75rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
       .chat-label { margin-bottom: 6px; }
@@ -58,31 +62,26 @@
       .copy { margin-top: auto; padding: 7px 11px; border: 1px solid var(--line); border-radius: 5px; background: var(--soft); color: var(--text); cursor: pointer; font-weight: 600; }
       .copy:hover { border-color: var(--accent); }
       .copy.copied { color: var(--accent); }
+      .copy:disabled { color: var(--muted); cursor: not-allowed; opacity: .65; }
       footer { color: var(--muted); text-align: center; margin-top: 56px; font-size: .86rem; }
-      @media (max-width: 720px) { nav { margin-bottom: 40px; } .back { display: none; } .setup { grid-template-columns: 1fr; } .switch button { width: 50%; min-height: 40px; } .card { grid-template-columns: 1fr; gap: 14px; } .card-output { grid-column: auto; display: flex; } .copy { margin-top: 0; } .shell { width: calc(100% - 20px); padding-top: 18px; } }
+      @media (max-width: 840px) { header { grid-template-columns: 1fr; gap: 24px; } .setup { max-width: 560px; } }
+      @media (max-width: 720px) { nav { margin-bottom: 40px; } .back { display: none; } .card { grid-template-columns: 1fr; gap: 14px; } .card-output { grid-column: auto; display: flex; } .copy { margin-top: 0; } .shell { width: calc(100% - 20px); padding-top: 18px; } }
     </style>
   </head>
   <body>
     <main class="shell">
       <nav><a class="brand" href="/">MCSR <span>Stats</span></a><div class="nav-actions"><a class="back" href="/">Back to stats</a><button class="theme-toggle" id="theme-toggle" type="button">Dark mode</button></div></nav>
       <header>
-        <div class="eyebrow">Chat bot commands</div>
-        <h1>MCSR Stats commands</h1>
-        <p>Enter your Minecraft username, choose your bot, then copy any command straight into your chat bot dashboard.</p>
-      </header>
-      <section class="setup" aria-label="Command settings">
-        <div>
+        <div class="header-copy">
+          <div class="eyebrow">Chat bot commands</div>
+          <h1>MCSR Stats commands</h1>
+          <p>Enter your Minecraft username, then copy any command straight into your Fossabot dashboard.</p>
+        </div>
+        <section class="setup" aria-label="Command settings">
           <label for="username">Minecraft username</label>
-          <input id="username" value="silverrruns" autocomplete="off" spellcheck="false" />
-        </div>
-        <div>
-          <label>Bot platform</label>
-          <div class="switch" role="group" aria-label="Bot platform">
-            <button class="active" data-bot="fossabot" aria-pressed="true">Fossabot</button>
-            <button data-bot="nightbot" aria-pressed="false">Nightbot</button>
-          </div>
-        </div>
-      </section>
+          <input id="username" value="Feinberg" autocomplete="off" spellcheck="false" />
+        </section>
+      </header>
       <div class="summary"><h2>Available commands</h2><span id="count"></span></div>
       <section id="commands" aria-live="polite"></section>
       <footer>Built for the MCSR community · <a href="https://github.com/memerson12/MCSR-Ranked-Matches-Today">View source</a></footer>
@@ -91,20 +90,57 @@
     <script>
       const usernameInput = document.querySelector("#username");
       const container = document.querySelector("#commands");
-      const botButtons = document.querySelectorAll("[data-bot]");
       const themeButton = document.querySelector("#theme-toggle");
-      let selectedBot = "fossabot";
+      const selectedRecords = new Set(
+        window.COMMAND_CATALOG.flatMap((item) =>
+          (item.records || []).filter((record) => record.default).map((record) => record.id)
+        )
+      );
 
       const savedTheme = localStorage.getItem("theme");
       const initialTheme = savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
       document.documentElement.dataset.theme = initialTheme;
       themeButton.textContent = initialTheme === "dark" ? "Light mode" : "Dark mode";
 
-      const commandFor = (item, username) => item.commands[selectedBot].replaceAll("{{username}}", username);
+      function selectedRecordsFor(item) {
+        return (item.records || []).filter((record) => selectedRecords.has(record.id));
+      }
+
+      function commandFor(item, username) {
+        if (item.records) {
+          const records = selectedRecordsFor(item);
+          if (!records.length) return "$(eval `Select at least one world record`)";
+          const output = records.map((record) =>
+            `${record.label} - \${r['${record.key}']['igt']} by \${r['${record.key}']['runner']}`
+          ).join(" | ");
+          return `$(eval r=$(customapi https://mcsr-stats.memerson.xyz/api/world_records); \`${output}\`)`;
+        }
+        return item.commands.fossabot.replaceAll("{{username}}", username);
+      }
+
+      function exampleFor(item, username) {
+        if (item.records) {
+          const records = selectedRecordsFor(item);
+          return records.length
+            ? records.map((record) => `${record.label} - ${record.sample}`).join(" | ")
+            : "Select at least one world record";
+        }
+        return item.example.replaceAll("{{username}}", username);
+      }
+
+      function optionsFor(item) {
+        if (!item.records) return "";
+        const options = item.records.map((record) => `<label class="record-option">
+          <input type="checkbox" data-record="${record.id}" ${selectedRecords.has(record.id) ? "checked" : ""} /> ${record.label}
+        </label>`).join("");
+        const sources = item.sources.map((source) => `<a href="${source.url}" target="_blank" rel="noreferrer">${source.label}</a>`).join(" and ");
+        return `<fieldset class="record-options"><legend>Records to show</legend>${options}</fieldset>
+          <p class="record-sources">Records come from the ${sources}.</p>`;
+      }
 
       function render() {
         const username = usernameInput.value.trim();
-        document.querySelector("#count").textContent = `${window.COMMAND_CATALOG.length} commands · ${selectedBot}`;
+        document.querySelector("#count").textContent = `${window.COMMAND_CATALOG.length} Fossabot commands`;
         const groups = ["Ranked", "Draftout", "Misc"];
         container.innerHTML = groups.map((group) => {
           const items = window.COMMAND_CATALOG.filter((item) => item.category === group);
@@ -113,6 +149,7 @@
               <div class="card-info">
                 <div class="card-top"><h3>${item.name}</h3><span class="trigger">${item.trigger}</span></div>
                 <p class="description">${item.description}</p>
+                ${optionsFor(item)}
               </div>
               <div class="card-command"><span class="column-label">Command</span><pre><code data-command-code="${item.id}"></code></pre></div>
               <div class="card-output">
@@ -120,8 +157,8 @@
                 <div class="chat-preview">
                   <div class="chat-line">
                     <span class="chat-icon bot" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 2h6v2h-2v2h5a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3h5V4H9V2Zm-3 7v8h12V9H6Zm2 2h3v3H8v-3Zm5 0h3v3h-3v-3Z"/></svg></span>
-                    <span class="chat-icon brand-icon" aria-hidden="true">${selectedBot === "fossabot" ? `<svg viewBox="0 0 24 24"><path d="M3 17 8 7l4 6 3-4 6 8v3H3v-3Z"/></svg>` : "N"}</span>
-                    <span class="chat-name">${selectedBot === "fossabot" ? "Fossabot" : "Nightbot"}:</span>
+                    <span class="chat-icon brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 17 8 7l4 6 3-4 6 8v3H3v-3Z"/></svg></span>
+                    <span class="chat-name">Fossabot:</span>
                     <span class="chat-message" data-command-example="${item.id}"></span>
                   </div>
                 </div>
@@ -135,7 +172,7 @@
         }).join("");
         window.COMMAND_CATALOG.forEach((item) => {
           container.querySelector(`[data-command-code="${item.id}"]`).textContent = commandFor(item, username);
-          container.querySelector(`[data-command-example="${item.id}"]`).textContent = item.example.replaceAll("{{username}}", username);
+          container.querySelector(`[data-command-example="${item.id}"]`).textContent = exampleFor(item, username);
         });
       }
 
@@ -147,15 +184,13 @@
       });
 
       usernameInput.addEventListener("input", render);
-      botButtons.forEach((button) => button.addEventListener("click", () => {
-        selectedBot = button.dataset.bot;
-        botButtons.forEach((item) => {
-          const active = item === button;
-          item.classList.toggle("active", active);
-          item.setAttribute("aria-pressed", String(active));
-        });
+      container.addEventListener("change", (event) => {
+        const checkbox = event.target.closest("[data-record]");
+        if (!checkbox) return;
+        if (checkbox.checked) selectedRecords.add(checkbox.dataset.record);
+        else selectedRecords.delete(checkbox.dataset.record);
         render();
-      }));
+      });
       container.addEventListener("click", async (event) => {
         const button = event.target.closest(".copy");
         if (!button) return;
