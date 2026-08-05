@@ -67,7 +67,7 @@
 
       .compact {
         width: 380px;
-        min-height: 82px;
+        height: 112px;
         border-radius: 22px;
         padding: 14px 16px 13px;
       }
@@ -140,6 +140,64 @@
         text-align: right;
         font-size: 30px;
         font-weight: 900;
+        line-height: 1;
+      }
+
+      .compact .elo {
+        width: 118px;
+      }
+
+      .elo-session {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 5px;
+        height: 16px;
+        margin-top: 2px;
+      }
+
+      .elo-chart {
+        width: 84px;
+        height: 16px;
+        flex: 0 0 auto;
+        overflow: visible;
+      }
+
+      .elo-area {
+        stroke: none;
+      }
+
+      .elo-line {
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .elo-line.positive {
+        stroke: var(--good);
+      }
+
+      .elo-line.negative {
+        stroke: var(--bad);
+      }
+
+      .elo-line.neutral {
+        stroke: var(--muted);
+        stroke-width: 1.5;
+        opacity: 0.55;
+      }
+
+      .elo-point {
+        fill: var(--muted);
+        stroke: none;
+      }
+
+      .elo-session .delta {
+        min-width: 24px;
+        margin-top: 0;
+        font-size: 13px;
         line-height: 1;
       }
 
@@ -442,9 +500,12 @@
               ${rankBadge(data)}
             </div>
             <div class="elo">
-              ${formatElo(data.currentElo)}
-              <div class="delta ${deltaClass(session.totalEloChange)}">
-                ${formatDelta(session.totalEloChange)}
+              <div class="elo-value">${formatElo(data.currentElo)}</div>
+              <div class="elo-session">
+                ${sessionEloChart(session.eloTrend)}
+                <div class="delta ${deltaClass(session.totalEloChange)}">
+                  ${formatDelta(session.totalEloChange)}
+                </div>
               </div>
             </div>
           </section>
@@ -504,6 +565,137 @@
             ? ""
             : `${latest.playerScore}-${latest.opponentScore}`;
         return `${score} ${formatDelta(latest.eloChange)}`.trim();
+      }
+
+      function sessionEloChart(trend) {
+        const width = 84;
+        const height = 16;
+        const padding = 1;
+        const bottomFadeSpace = 3;
+        const values = Array.isArray(trend)
+          ? trend.map(Number).filter(Number.isFinite)
+          : [];
+        const plotValues = values.length > 1 ? values : [0, 0];
+        const domain = eloTrendDomain(plotValues);
+        const points = plotValues.map((value, index) => ({
+          value,
+          x:
+            padding +
+            (index / (plotValues.length - 1)) * (width - padding * 2),
+          y:
+            padding +
+            ((domain.max - value) / (domain.max - domain.min)) *
+              (height - padding - bottomFadeSpace),
+        }));
+        const pointSpacing =
+          (width - padding * 2) / Math.max(points.length - 1, 1);
+        const pointRadius = Math.min(
+          1.5,
+          Math.max(0.4, pointSpacing * 0.35),
+        );
+        const areaRuns = [];
+        let currentArea = null;
+        const lines = [];
+
+        for (let index = 1; index < points.length; index++) {
+          const previous = points[index - 1];
+          const current = points[index];
+          const direction = deltaClass(current.value - previous.value);
+          const linePath = `M ${chartNumber(previous.x)} ${chartNumber(previous.y)} L ${chartNumber(current.x)} ${chartNumber(current.y)}`;
+
+          if (direction === "neutral") {
+            currentArea = null;
+          } else if (currentArea?.direction === direction) {
+            currentArea.points.push(current);
+          } else {
+            currentArea = {
+              direction,
+              points: [previous, current],
+            };
+            areaRuns.push(currentArea);
+          }
+
+          lines.push(
+            `<path class="elo-line ${direction}" d="${linePath}" />`,
+          );
+        }
+
+        const areas = areaRuns.map((area) => {
+          const first = area.points[0];
+          const last = area.points[area.points.length - 1];
+          const topPath = area.points
+            .map(
+              (point, index) =>
+                `${index === 0 ? "M" : "L"} ${chartNumber(point.x)} ${chartNumber(point.y)}`,
+            )
+            .join(" ");
+
+          return `
+            <path
+              class="elo-area"
+              d="${topPath} L ${chartNumber(last.x)} ${height} L ${chartNumber(first.x)} ${height} Z"
+              fill="url(#elo-fill-${area.direction})"
+            />
+          `;
+        });
+
+        const pointMarkers =
+          values.length > 1
+            ? points
+                .slice(1)
+                .map(
+                  (point) =>
+                    `<circle class="elo-point" cx="${chartNumber(point.x)}" cy="${chartNumber(point.y)}" r="${chartNumber(pointRadius)}" />`,
+                )
+            : [];
+
+        return `
+          <svg class="elo-chart" viewBox="0 0 ${width} ${height}" aria-hidden="true">
+            <defs>
+              <linearGradient id="elo-fill-positive" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--good)" stop-opacity="0.42" />
+                <stop offset="60%" stop-color="var(--good)" stop-opacity="0.42" />
+                <stop offset="100%" stop-color="var(--good)" stop-opacity="0" />
+              </linearGradient>
+              <linearGradient id="elo-fill-negative" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--bad)" stop-opacity="0.42" />
+                <stop offset="60%" stop-color="var(--bad)" stop-opacity="0.42" />
+                <stop offset="100%" stop-color="var(--bad)" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            ${areas.join("")}
+            ${lines.join("")}
+            ${pointMarkers.join("")}
+          </svg>
+        `;
+      }
+
+      function eloTrendDomain(values) {
+        let min = Math.min(0, ...values);
+        let max = Math.max(0, ...values);
+        const minimumRange = 20;
+
+        if (min === 0 && max === 0) {
+          return { min: -minimumRange / 2, max: minimumRange / 2 };
+        }
+
+        if (max - min < minimumRange) {
+          if (min >= 0) {
+            max = minimumRange;
+          } else if (max <= 0) {
+            min = -minimumRange;
+          } else {
+            const padding = (minimumRange - (max - min)) / 2;
+            min -= padding;
+            max += padding;
+          }
+        }
+
+        return { min, max };
+      }
+
+      function chartNumber(value) {
+        return Number(value.toFixed(2));
       }
 
       function renderError(message) {

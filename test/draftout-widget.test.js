@@ -8,6 +8,7 @@ import {
 
 const baseNow = new Date("2026-05-25T20:00:00.000Z");
 const widgetHtml = readFileSync("public/draftout-widget.html", "utf8");
+const configHtml = readFileSync("public/draftout-widget-config.html", "utf8");
 
 test("summarizeDraftoutWidgetStats includes contiguous matches until a gap boundary", () => {
   const summary = summarizeDraftoutWidgetStats("Feinberg", pagesWithMatches([
@@ -57,6 +58,7 @@ test("summarizeDraftoutWidgetStats includes contiguous matches until a gap bound
   assert.equal(summary.session.totalEloChange, 11);
   assert.equal(summary.session.winRate, 67);
   assert.equal(summary.session.currentWinStreak, 2);
+  assert.deepEqual(summary.session.eloTrend, [0, -10, -2, 11]);
   assert.equal(summary.latestMatch.opponentUsername, "latest");
 });
 
@@ -80,6 +82,7 @@ test("summarizeDraftoutWidgetStats reports no active session while preserving cu
   assert.equal(summary.session.drawCount, 0);
   assert.equal(summary.session.totalEloChange, 0);
   assert.equal(summary.session.currentWinStreak, 1);
+  assert.deepEqual(summary.session.eloTrend, [0]);
 });
 
 test("summarizeDraftoutWidgetStats does not stop current win streak on a draw", () => {
@@ -214,6 +217,46 @@ test("compact widget renders current win streak between WLD and session", () => 
   assert.match(compactTemplate, /is-streak/);
   assert.match(compactTemplate, /session\.currentWinStreak/);
   assert.match(compactTemplate, /is-session/);
+});
+
+test("compact widget renders the session ELO trend beside its delta", () => {
+  const compactTemplate = htmlBetween(
+    "function compactTemplate(data)",
+    "function expandedTemplate(data)"
+  );
+
+  assert.match(compactTemplate, /sessionEloChart\(session\.eloTrend\)/);
+  assert.match(compactTemplate, /elo-session/);
+  assert.match(widgetHtml, /class="elo-chart"/);
+  assert.match(widgetHtml, /elo-fill-positive/);
+  assert.match(widgetHtml, /elo-fill-negative/);
+  assert.match(widgetHtml, /class="elo-point"/);
+  assert.doesNotMatch(widgetHtml, /class="elo-point \$\{direction\}"/);
+  assert.match(widgetHtml, /points\s*\.slice\(1\)\s*\.map/);
+  assert.match(widgetHtml, /pointSpacing \* 0\.35/);
+  assert.match(widgetHtml, /\.elo-point\s*\{[\s\S]*?fill: var\(--muted\)/);
+  assert.match(widgetHtml, /stop-opacity="0\.42"/);
+  assert.match(widgetHtml, /const bottomFadeSpace = 3/);
+  assert.match(widgetHtml, /height - padding - bottomFadeSpace/);
+  assert.match(widgetHtml, /offset="60%"[\s\S]*?stop-opacity="0\.42"/);
+
+  const chartRenderer = htmlBetween(
+    "function sessionEloChart(trend)",
+    "function eloTrendDomain(values)"
+  );
+  assert.ok(
+    chartRenderer.indexOf('${lines.join("")}') <
+      chartRenderer.indexOf('${pointMarkers.join("")}'),
+    "match dots should render after the line"
+  );
+  assert.match(chartRenderer, /const areaRuns = \[\]/);
+  assert.match(chartRenderer, /currentArea\?\.direction === direction/);
+  assert.doesNotMatch(chartRenderer, /areas\.push\(/);
+});
+
+test("compact widget and configurator agree on the OBS source height", () => {
+  assert.match(widgetHtml, /\.compact\s*\{[\s\S]*?height: 112px/);
+  assert.match(configHtml, /"380 x 112"/);
 });
 
 test("expanded widget keeps record values on one line", () => {

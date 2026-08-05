@@ -544,6 +544,7 @@ function summarizeDraftoutSessionMatches(matches, player, requestedUsername) {
   let totalEloChange = 0;
   let currentWinStreak = 0;
   let streakOpen = true;
+  const eloTrend = [0];
 
   for (const match of matches) {
     const participant = findPlayerParticipant(match, player, requestedUsername);
@@ -571,6 +572,19 @@ function summarizeDraftoutSessionMatches(matches, player, requestedUsername) {
     }
   }
 
+  let cumulativeEloChange = 0;
+
+  for (const match of [...matches].reverse()) {
+    const participant = findPlayerParticipant(match, player, requestedUsername);
+
+    if (!Number.isFinite(participant?.eloChange)) {
+      continue;
+    }
+
+    cumulativeEloChange += participant.eloChange;
+    eloTrend.push(cumulativeEloChange);
+  }
+
   const totalMatchesCount = matches.length;
   const lossMatchesCount = totalMatchesCount - wonMatchesCount - drawCount;
 
@@ -580,6 +594,7 @@ function summarizeDraftoutSessionMatches(matches, player, requestedUsername) {
     lossMatchesCount,
     drawCount,
     totalEloChange,
+    eloTrend,
     winRate:
       totalMatchesCount > 0
         ? Math.round((wonMatchesCount / totalMatchesCount) * 100)

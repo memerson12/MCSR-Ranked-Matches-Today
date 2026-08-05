@@ -163,6 +163,7 @@ The `draftout.js` route fetches the Draftout stats API and returns competitive m
     "lossMatchesCount": 0,
     "drawCount": 0,
     "totalEloChange": 72,
+    "eloTrend": [0, 8, 21, 31, 39, 48, 59, 72],
     "winRate": 100,
     "currentWinStreak": 7
   },
@@ -201,12 +202,15 @@ Use the config page to choose:
 - Refresh seconds
 - Accent color
 
+Compact mode includes a session ELO sparkline. Its green and red segments show
+the cumulative gain or loss after each completed match in the active session.
+
 The config page generates the overlay URL and shows the recommended OBS browser source size.
 
 Recommended OBS source sizes:
 
 - Ultra compact: `170 x 36`
-- Compact: `380 x 82`
+- Compact: `380 x 112`
 - Expanded: `430 x 222`
 
 The widget detects the current session by walking backward through recent Draftout competitive matches until it finds a gap larger than the configured session gap. If the newest match is older than the gap, session stats display as zeroes.
