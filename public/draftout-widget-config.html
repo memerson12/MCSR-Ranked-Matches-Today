@@ -134,6 +134,9 @@
 
       .segment input {
         position: absolute;
+        width: 1px;
+        height: 1px;
+        min-height: 0;
         opacity: 0;
         pointer-events: none;
       }
@@ -154,6 +157,93 @@
         border-color: var(--accent);
         background: var(--segment-active-bg);
         color: var(--segment-active-text);
+      }
+
+      .compact-options {
+        display: grid;
+        gap: 7px;
+      }
+
+      .compact-options[hidden] {
+        display: none;
+      }
+
+      .compact-options legend {
+        margin-bottom: 7px;
+      }
+
+      .compact-options-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .option-tile {
+        position: relative;
+        min-width: 0;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      .option-tile input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        min-height: 0;
+        opacity: 0;
+      }
+
+      .option-tile-content {
+        display: grid;
+        min-height: 68px;
+        align-content: center;
+        justify-items: start;
+        gap: 6px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--input);
+        padding: 10px;
+        color: var(--muted);
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .option-tile-icon {
+        font-size: 20px;
+      }
+
+      .option-tile-label {
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .option-tile-check {
+        position: absolute;
+        top: 9px;
+        right: 9px;
+        color: var(--accent);
+        font-size: 18px;
+        opacity: 0;
+        transform: scale(0.8);
+        transition: opacity 0.15s ease, transform 0.15s ease;
+      }
+
+      .option-tile input:checked + .option-tile-content {
+        border-color: var(--accent);
+        background: var(--segment-active-bg);
+        color: var(--segment-active-text);
+      }
+
+      .option-tile input:checked + .option-tile-content .option-tile-check {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .option-tile input:focus-visible + .option-tile-content {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
       }
 
       .url-row {
@@ -393,6 +483,28 @@
             </div>
           </fieldset>
 
+          <fieldset id="compactOptions" class="compact-options">
+            <legend>Compact options</legend>
+            <div class="compact-options-grid">
+              <label class="option-tile" for="showEloGraph">
+                <input id="showEloGraph" type="checkbox" checked />
+                <span class="option-tile-content">
+                  <span class="material-symbols-outlined option-tile-icon" aria-hidden="true">show_chart</span>
+                  <span class="option-tile-label">ELO graph</span>
+                  <span class="material-symbols-outlined option-tile-check" aria-hidden="true">check_circle</span>
+                </span>
+              </label>
+              <label class="option-tile" for="showWinStreak">
+                <input id="showWinStreak" type="checkbox" checked />
+                <span class="option-tile-content">
+                  <span class="material-symbols-outlined option-tile-icon" aria-hidden="true">local_fire_department</span>
+                  <span class="option-tile-label">Win streak</span>
+                  <span class="material-symbols-outlined option-tile-check" aria-hidden="true">check_circle</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
           <div class="field">
             <div class="label-row">
               <label for="gapHours">Session gap hours</label>
@@ -440,7 +552,7 @@
           </div>
           <div class="obs-size">
             <div class="obs-size-title">OBS browser source size</div>
-            <div id="obsSize" class="obs-size-value">380 x 82</div>
+            <div id="obsSize" class="obs-size-value">380 x 112</div>
           </div>
           <div id="copyStatus" class="hint">Use this URL as an OBS browser source.</div>
         </section>
@@ -475,6 +587,9 @@
         gapHours: document.getElementById("gapHours"),
         refreshSeconds: document.getElementById("refreshSeconds"),
         accent: document.getElementById("accent"),
+        compactOptions: document.getElementById("compactOptions"),
+        showEloGraph: document.getElementById("showEloGraph"),
+        showWinStreak: document.getElementById("showWinStreak"),
         url: document.getElementById("url"),
         preview: document.getElementById("preview"),
         copy: document.getElementById("copy"),
@@ -502,6 +617,7 @@
 
       function update() {
         const mode = document.querySelector('input[name="mode"]:checked').value;
+        controls.compactOptions.hidden = mode !== "compact";
         const url = buildWidgetUrl();
         controls.url.value = url;
         controls.preview.src = url;
@@ -514,13 +630,19 @@
       }
 
       function buildWidgetUrl() {
+        const mode = document.querySelector('input[name="mode"]:checked').value;
         const params = new URLSearchParams({
           username: controls.username.value.trim(),
-          mode: document.querySelector('input[name="mode"]:checked').value,
+          mode,
           gapHours: positiveNumber(controls.gapHours.value, 6),
           refreshSeconds: positiveNumber(controls.refreshSeconds.value, 30),
           accent: controls.accent.value,
         });
+
+        if (mode === "compact") {
+          params.set("showEloGraph", String(controls.showEloGraph.checked));
+          params.set("showWinStreak", String(controls.showWinStreak.checked));
+        }
 
         return `${window.location.origin}/draftout-widget.html?${params.toString()}`;
       }

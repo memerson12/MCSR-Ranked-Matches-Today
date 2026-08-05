@@ -217,6 +217,8 @@ test("compact widget renders current win streak between WLD and session", () => 
   assert.match(compactTemplate, /is-streak/);
   assert.match(compactTemplate, /session\.currentWinStreak/);
   assert.match(compactTemplate, /is-session/);
+  assert.match(compactTemplate, /config\.showWinStreak/);
+  assert.match(compactTemplate, /without-streak/);
 });
 
 test("compact widget renders the session ELO trend beside its delta", () => {
@@ -226,6 +228,8 @@ test("compact widget renders the session ELO trend beside its delta", () => {
   );
 
   assert.match(compactTemplate, /sessionEloChart\(session\.eloTrend\)/);
+  assert.match(compactTemplate, /config\.showEloGraph/);
+  assert.match(compactTemplate, /without-chart/);
   assert.match(compactTemplate, /elo-session/);
   assert.match(widgetHtml, /class="elo-chart"/);
   assert.match(widgetHtml, /elo-fill-positive/);
@@ -257,6 +261,16 @@ test("compact widget renders the session ELO trend beside its delta", () => {
 test("compact widget and configurator agree on the OBS source height", () => {
   assert.match(widgetHtml, /\.compact\s*\{[\s\S]*?height: 112px/);
   assert.match(configHtml, /"380 x 112"/);
+});
+
+test("compact configurator defaults graph and win streak controls on", () => {
+  assert.match(configHtml, /id="showEloGraph" type="checkbox" checked/);
+  assert.match(configHtml, /id="showWinStreak" type="checkbox" checked/);
+  assert.match(configHtml, /params\.set\("showEloGraph"/);
+  assert.match(configHtml, /params\.set\("showWinStreak"/);
+  assert.match(widgetHtml, /booleanParam\(params\.get\("showEloGraph"\), true\)/);
+  assert.match(widgetHtml, /booleanParam\(params\.get\("showWinStreak"\), true\)/);
+  assert.match(configHtml, /\.option-tile\s*\{[\s\S]*?user-select: none/);
 });
 
 test("expanded widget keeps record values on one line", () => {

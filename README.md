@@ -204,6 +204,8 @@ Use the config page to choose:
 
 Compact mode includes a session ELO sparkline. Its green and red segments show
 the cumulative gain or loss after each completed match in the active session.
+The configurator can hide the compact sparkline or win streak independently;
+both are enabled by default.
 
 The config page generates the overlay URL and shows the recommended OBS browser source size.
 

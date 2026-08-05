@@ -147,6 +147,11 @@
         width: 118px;
       }
 
+      .compact .elo.without-chart {
+        width: auto;
+        min-width: 72px;
+      }
+
       .elo-session {
         display: flex;
         align-items: center;
@@ -299,6 +304,10 @@
         justify-self: end;
       }
 
+      .compact-stats.without-streak {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+
       .compact-stat span {
         color: var(--muted);
         font-size: 10px;
@@ -408,6 +417,8 @@
         gapHours: positiveNumber(params.get("gapHours"), 6),
         refreshSeconds: positiveNumber(params.get("refreshSeconds"), 30),
         accent: normalizeAccent(params.get("accent")),
+        showEloGraph: booleanParam(params.get("showEloGraph"), true),
+        showWinStreak: booleanParam(params.get("showWinStreak"), true),
       };
       let lastData = null;
 
@@ -499,23 +510,23 @@
               <div class="name">${escapeHtml(data.username)}</div>
               ${rankBadge(data)}
             </div>
-            <div class="elo">
+            <div class="elo${config.showEloGraph ? "" : " without-chart"}">
               <div class="elo-value">${formatElo(data.currentElo)}</div>
               <div class="elo-session">
-                ${sessionEloChart(session.eloTrend)}
+                ${config.showEloGraph ? sessionEloChart(session.eloTrend) : ""}
                 <div class="delta ${deltaClass(session.totalEloChange)}">
                   ${formatDelta(session.totalEloChange)}
                 </div>
               </div>
             </div>
           </section>
-          <section class="compact-stats">
+          <section class="compact-stats${config.showWinStreak ? "" : " without-streak"}">
             <div class="compact-stat-group">
               <div class="compact-stat"><span>W</span>${session.wonMatchesCount}</div>
               <div class="compact-stat"><span>L</span>${session.lossMatchesCount}</div>
               <div class="compact-stat"><span>D</span>${session.drawCount}</div>
             </div>
-            <div class="compact-stat is-streak"><span>Streak</span>${session.currentWinStreak}</div>
+            ${config.showWinStreak ? `<div class="compact-stat is-streak"><span>Streak</span>${session.currentWinStreak}</div>` : ""}
             <div class="compact-stat is-session"><span>Session</span>${session.totalMatchesCount}</div>
           </section>
         `;
@@ -705,6 +716,11 @@
       function positiveNumber(value, fallback) {
         const parsed = Number(value);
         return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+      }
+
+      function booleanParam(value, fallback) {
+        if (value == null) return fallback;
+        return value !== "false" && value !== "0";
       }
 
       function normalizeAccent(value) {
