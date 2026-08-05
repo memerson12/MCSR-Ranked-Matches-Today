@@ -97,6 +97,37 @@ const upstreamRequestDurationSeconds = new client.Histogram({
   registers: [register],
 });
 
+const draftoutWidgetCacheRequestsTotal = new client.Counter({
+  name: "mcsr_draftout_widget_cache_requests_total",
+  help: "Total Draftout widget cache lookups by result.",
+  labelNames: ["cache_status"],
+  registers: [register],
+});
+
+const draftoutWidgetCacheAgeSeconds = new client.Histogram({
+  name: "mcsr_draftout_widget_cache_age_seconds",
+  help: "Age of Draftout widget data returned from cache.",
+  labelNames: ["cache_status"],
+  buckets: [0.1, 1, 5, 15, 30, 60, 120],
+  registers: [register],
+});
+
+const draftoutWidgetPagesFetched = new client.Histogram({
+  name: "mcsr_draftout_widget_pages_fetched",
+  help: "Draftout pages fetched for one widget data refresh.",
+  labelNames: ["needs_win_streak"],
+  buckets: [1, 2, 3, 5, 10, 20, 50],
+  registers: [register],
+});
+
+const draftoutWidgetRefreshDurationSeconds = new client.Histogram({
+  name: "mcsr_draftout_widget_refresh_duration_seconds",
+  help: "Duration of an uncached Draftout widget data refresh.",
+  labelNames: ["status"],
+  buckets: [0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+  registers: [register],
+});
+
 function routeLabelFor(req) {
   if (req.path === "/") return "/";
   if (req.path === "/api/axolotls/stats") return "/api/axolotls/stats";
@@ -356,6 +387,25 @@ export function recordDraftoutWidgetUserRequest(username, channel, statusCode) {
     channel: channel || "anonymous",
     status_code: String(statusCode),
   });
+}
+
+export function recordDraftoutWidgetCacheResult(cacheStatus, ageMs) {
+  const labels = { cache_status: cacheStatus };
+  draftoutWidgetCacheRequestsTotal.inc(labels);
+  draftoutWidgetCacheAgeSeconds.observe(labels, Math.max(0, ageMs) / 1000);
+}
+
+export function recordDraftoutWidgetPagesFetched(pageCount, needsWinStreak) {
+  draftoutWidgetPagesFetched.observe(
+    { needs_win_streak: String(Boolean(needsWinStreak)) },
+    pageCount,
+  );
+}
+
+export function startDraftoutWidgetRefreshTimer() {
+  const endTimer = draftoutWidgetRefreshDurationSeconds.startTimer();
+
+  return (status) => endTimer({ status });
 }
 
 export function normalizeDraftoutWidgetUsername(username) {

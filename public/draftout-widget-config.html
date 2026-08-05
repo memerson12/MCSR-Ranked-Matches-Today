@@ -598,15 +598,17 @@
         themeToggle: document.getElementById("themeToggle"),
         themeLabel: document.getElementById("themeLabel"),
       };
+      let previewUpdateTimer = null;
 
       applyTheme(localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
 
       document
         .querySelectorAll("input")
-        .forEach((input) => input.addEventListener("input", update));
-      document
-        .querySelectorAll('input[name="mode"]')
-        .forEach((input) => input.addEventListener("change", update));
+        .forEach((input) =>
+          input.addEventListener("input", () =>
+            update({ debouncePreview: input === controls.username }),
+          ),
+        );
       controls.copy.addEventListener("click", copyUrl);
       controls.themeToggle.addEventListener("click", toggleTheme);
       addEventListener("storage", (event) => {
@@ -615,18 +617,31 @@
 
       update();
 
-      function update() {
+      function update({ debouncePreview = false } = {}) {
         const mode = document.querySelector('input[name="mode"]:checked').value;
         controls.compactOptions.hidden = mode !== "compact";
         const url = buildWidgetUrl();
         controls.url.value = url;
-        controls.preview.src = url;
+
+        clearTimeout(previewUpdateTimer);
+        if (debouncePreview) {
+          previewUpdateTimer = setTimeout(() => updatePreview(url), 350);
+        } else {
+          updatePreview(url);
+        }
+
         controls.obsSize.textContent =
           mode === "ultra_compact"
             ? "170 x 36"
             : mode === "expanded"
             ? "430 x 222"
             : "380 x 112";
+      }
+
+      function updatePreview(url) {
+        if (controls.preview.src !== url) {
+          controls.preview.src = url;
+        }
       }
 
       function buildWidgetUrl() {

@@ -217,6 +217,12 @@ Recommended OBS source sizes:
 
 The widget detects the current session by walking backward through recent Draftout competitive matches until it finds a gap larger than the configured session gap. If the newest match is older than the gap, session stats display as zeroes.
 
+Widget API responses are held in a bounded in-process cache. Concurrent requests
+for the same player share one Draftout fetch, fresh entries are reused for 15
+seconds, and entries up to two minutes old can be served while refreshing in the
+background. This keeps OBS responsive during Draftout latency spikes without
+creating an unbounded cache.
+
 ## Metrics
 
 The app exposes Prometheus metrics on the metrics server, which defaults to `http://127.0.0.1:9100/metrics`.

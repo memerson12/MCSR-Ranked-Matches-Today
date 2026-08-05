@@ -4,9 +4,13 @@ import {
   getRequestContext,
   instrumentDraftoutRequest,
   instrumentDraftoutWidgetUserRequest,
+  recordDraftoutWidgetCacheResult,
+  recordDraftoutWidgetPagesFetched,
   recordUpstreamRequest,
+  startDraftoutWidgetRefreshTimer,
 } from "../utils/metrics.js";
 import { getChannelFromHeaders } from "../utils/headers_parser.js";
+import { createAsyncLruCache } from "../utils/async_lru_cache.js";
 
 const router = express.Router();
 const DRAFTOUT_API_BASE_URL = "https://draftoutmc.com/api/stats";
@@ -16,6 +20,12 @@ const MAX_DRAFTOUT_PAGES = 50;
 const DEFAULT_WIDGET_GAP_HOURS = 6;
 const DEFAULT_WIDGET_REFRESH_SECONDS = 30;
 const DEFAULT_WIDGET_ACCENT = "#58d5e8";
+const draftoutWidgetCache = createAsyncLruCache({
+  max: 500,
+  ttlMs: 15_000,
+  maxStaleMs: 120_000,
+  loadTimeoutMs: 10_000,
+});
 
 router.get("/leaderboard", async (req, res) => {
   prepareDraftoutRouteContext(req, res, "leaderboard");
@@ -59,13 +69,24 @@ router.get("/widget", async (req, res) => {
 
   try {
     requestContext?.setStage("fetch_draftout_widget_stats");
-    const pages = await fetchDraftoutWidgetPages(username, options.gapHours, {
+    const needsWinStreak = widgetNeedsWinStreak(options);
+    const cacheKey = draftoutWidgetCacheKey(
+      username,
+      options.gapHours,
+      needsWinStreak,
+    );
+    const cached = await draftoutWidgetCache.get(cacheKey, {
       signal,
-      setAbortStage: requestContext?.setStage,
+      load: ({ signal: loadSignal }) =>
+        loadDraftoutWidgetData(username, options.gapHours, needsWinStreak, {
+          signal: loadSignal,
+        }),
     });
-    const firstPage = pages[0];
+    recordDraftoutWidgetCacheResult(cached.status, cached.ageMs);
+    res.set("X-Draftout-Cache", cached.status);
+    res.set("X-Draftout-Cache-Age", String(Math.round(cached.ageMs)));
 
-    if (!firstPage?.player) {
+    if (!cached.value.found) {
       return res
         .status(404)
         .json({ error: `No Draftout stats for ${username} were found` });
@@ -73,15 +94,15 @@ router.get("/widget", async (req, res) => {
 
     requestContext?.setStage("response_write");
     res.status(200).json({
-      ...summarizeDraftoutWidgetStats(username, pages, {
-        gapHours: options.gapHours,
-      }),
+      ...cached.value.data,
       options,
     });
   } catch (error) {
-    if (error?.name === "AbortError" || signal?.aborted) {
+    if (signal?.aborted) {
       return;
     }
+
+    recordDraftoutWidgetCacheResult("error", 0);
 
     requestContext?.log("error", "draftout_widget_request_failed", {
       error: error?.message || String(error),
@@ -249,8 +270,13 @@ async function fetchDraftoutStatPages(username, startDate, options = {}) {
   });
 }
 
-async function fetchDraftoutWidgetPages(username, gapHours, options = {}) {
+export async function fetchDraftoutWidgetPages(
+  username,
+  gapHours,
+  options = {},
+) {
   let player = null;
+  const needsWinStreak = options.needsWinStreak !== false;
 
   return fetchDraftoutPages(username, {
     ...options,
@@ -261,10 +287,44 @@ async function fetchDraftoutWidgetPages(username, gapHours, options = {}) {
       return (
         !page.player ||
         (widgetPagesContainSessionBoundary(pages, gapHours, new Date()) &&
-          pagesContainLossForPlayer(pages, player, username))
+          (!needsWinStreak ||
+            pagesContainLossForPlayer(pages, player, username)))
       );
     },
   });
+}
+
+async function loadDraftoutWidgetData(
+  username,
+  gapHours,
+  needsWinStreak,
+  options = {},
+) {
+  const endRefreshTimer = startDraftoutWidgetRefreshTimer();
+
+  try {
+    const pages = await fetchDraftoutWidgetPages(username, gapHours, {
+      ...options,
+      needsWinStreak,
+    });
+    recordDraftoutWidgetPagesFetched(pages.length, needsWinStreak);
+    const firstPage = pages[0];
+
+    if (!firstPage?.player) {
+      endRefreshTimer("not_found");
+      return { found: false, data: null };
+    }
+
+    const data = summarizeDraftoutWidgetStats(username, pages, {
+      gapHours,
+      includeCurrentWinStreak: needsWinStreak,
+    });
+    endRefreshTimer("success");
+    return { found: true, data };
+  } catch (error) {
+    endRefreshTimer("error");
+    throw error;
+  }
 }
 
 async function fetchDraftoutPagesUntilLastLoss(username, options = {}) {
@@ -281,7 +341,13 @@ async function fetchDraftoutPagesUntilLastLoss(username, options = {}) {
 }
 
 async function fetchDraftoutPages(username, options = {}) {
-  const { signal, setAbortStage, stage, shouldStop } = options;
+  const {
+    signal,
+    setAbortStage,
+    stage,
+    shouldStop,
+    fetchPage = fetchDraftoutStatPage,
+  } = options;
   const pages = [];
   let pageNumber = 1;
   let totalPages = 1;
@@ -297,7 +363,7 @@ async function fetchDraftoutPages(username, options = {}) {
     }
 
     setAbortStage?.(stage);
-    const page = await fetchDraftoutStatPage(username, pageNumber, { signal });
+    const page = await fetchPage(username, pageNumber, { signal });
     pages.push(page);
 
     if (shouldStop?.({ page, pages, pageNumber }) === true) {
@@ -378,6 +444,7 @@ export function summarizeDraftoutWidgetStats(
     DEFAULT_WIDGET_GAP_HOURS,
   );
   const now = options.now instanceof Date ? options.now : new Date();
+  const includeCurrentWinStreak = options.includeCurrentWinStreak !== false;
   const firstPage = pages[0] ?? {};
   const player = firstPage.player ?? {};
   const record = firstPage.record ?? {};
@@ -394,11 +461,9 @@ export function summarizeDraftoutWidgetStats(
     player,
     requestedUsername,
   );
-  session.currentWinStreak = computeCurrentWinstreakFromPages(
-    pages,
-    player,
-    requestedUsername,
-  );
+  session.currentWinStreak = includeCurrentWinStreak
+    ? computeCurrentWinstreakFromPages(pages, player, requestedUsername)
+    : null;
   const latestMatch = hasActiveSession
     ? summarizeLatestDraftoutMatch(
         activeSessionMatches[0],
@@ -451,6 +516,10 @@ export function getDraftoutWidgetOptions(query) {
       DEFAULT_WIDGET_REFRESH_SECONDS,
     ),
     accent: normalizeAccent(getSingleQueryValue(query.accent)),
+    showWinStreak: normalizeBoolean(
+      getSingleQueryValue(query.showWinStreak),
+      true,
+    ),
   };
 }
 
@@ -716,6 +785,33 @@ function normalizePositiveNumber(value, fallback) {
   const parsed = Number(value);
 
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function normalizeBoolean(value, fallback) {
+  if (value == null) {
+    return fallback;
+  }
+
+  return value !== "false" && value !== "0";
+}
+
+export function widgetNeedsWinStreak(options) {
+  return (
+    options.mode === "expanded" ||
+    (options.mode === "compact" && options.showWinStreak !== false)
+  );
+}
+
+export function draftoutWidgetCacheKey(
+  username,
+  gapHours,
+  needsWinStreak,
+) {
+  return [
+    String(username || "").trim().toLowerCase(),
+    String(normalizePositiveNumber(gapHours, DEFAULT_WIDGET_GAP_HOURS)),
+    needsWinStreak ? "streak" : "session",
+  ].join(":");
 }
 
 function normalizeAccent(value) {

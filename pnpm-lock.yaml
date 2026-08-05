@@ -35,6 +35,9 @@ importers:
       express:
         specifier: ^4.18.2
         version: 4.21.1
+      lru-cache:
+        specifier: ^11.5.2
+        version: 11.5.2
       node-fetch:
         specifier: ^3.3.1
         version: 3.3.2
@@ -914,6 +917,10 @@ packages:
 
   long@5.2.3:
     resolution: {integrity: sha512-lcHwpNoggQTObv5apGNCTdJrO69eHOZMi4BNC+rTLER8iHAqGrUVeLh/irVIM7zTw2bOXA8T6uNPeujwOLg/2Q==}
+
+  lru-cache@11.5.2:
+    resolution: {integrity: sha512-4pfM1Ff0x50o0tQwb5ucw/RzNyD0/YJME6IVcStalZuMWxdt3sR3huStTtxz4PUmvZfRguvDejasvQ2kifR11g==}
+    engines: {node: 20 || >=22}
 
   media-typer@0.3.0:
     resolution: {integrity: sha512-dq+qelQ9akHpcOl/gUVRTxVIOkAJ1wR3QAvb4RsVjS8oVoFjDGTc679wJYmUmknUF5HwMLOgb5O+a3KxfWapPQ==}
@@ -2366,6 +2373,8 @@ snapshots:
   lodash.camelcase@4.3.0: {}
 
   long@5.2.3: {}
+
+  lru-cache@11.5.2: {}
 
   media-typer@0.3.0: {}
 

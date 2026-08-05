@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  draftoutWidgetCacheKey,
+  fetchDraftoutWidgetPages,
   getDraftoutWidgetOptions,
   summarizeDraftoutWidgetStats,
+  widgetNeedsWinStreak,
 } from "../routes/draftout.js";
 
 const baseNow = new Date("2026-05-25T20:00:00.000Z");
@@ -162,6 +165,7 @@ test("getDraftoutWidgetOptions normalizes defaults and invalid query values", ()
     gapHours: 6,
     refreshSeconds: 30,
     accent: "#58d5e8",
+    showWinStreak: true,
   });
 
   assert.deepEqual(
@@ -176,6 +180,7 @@ test("getDraftoutWidgetOptions normalizes defaults and invalid query values", ()
       gapHours: 3.5,
       refreshSeconds: 10,
       accent: "#ff8800",
+      showWinStreak: true,
     }
   );
 
@@ -185,6 +190,67 @@ test("getDraftoutWidgetOptions normalizes defaults and invalid query values", ()
   );
 
   assert.equal(getDraftoutWidgetOptions({ mode: "bad-mode" }).mode, "compact");
+  assert.equal(
+    getDraftoutWidgetOptions({ showWinStreak: "false" }).showWinStreak,
+    false,
+  );
+});
+
+test("widget data requirements follow mode and win streak visibility", () => {
+  assert.equal(
+    widgetNeedsWinStreak({ mode: "compact", showWinStreak: true }),
+    true,
+  );
+  assert.equal(
+    widgetNeedsWinStreak({ mode: "compact", showWinStreak: false }),
+    false,
+  );
+  assert.equal(widgetNeedsWinStreak({ mode: "ultra_compact" }), false);
+  assert.equal(widgetNeedsWinStreak({ mode: "expanded" }), true);
+  assert.equal(
+    draftoutWidgetCacheKey(" Feinberg ", 6, true),
+    "feinberg:6:streak",
+  );
+});
+
+test("widget summary can omit a win streak that was not fetched", () => {
+  const summary = summarizeDraftoutWidgetStats(
+    "Feinberg",
+    pagesWithMatches([]),
+    { gapHours: 6, now: baseNow, includeCurrentWinStreak: false },
+  );
+
+  assert.equal(summary.session.currentWinStreak, null);
+});
+
+test("widget pagination skips loss lookup when streak is not needed", async () => {
+  const pages = paginationPages();
+  const fetchedPages = [];
+  const result = await fetchDraftoutWidgetPages("Feinberg", 6, {
+    needsWinStreak: false,
+    fetchPage: async (username, pageNumber) => {
+      fetchedPages.push(pageNumber);
+      return pages[pageNumber - 1];
+    },
+  });
+
+  assert.equal(result.length, 1);
+  assert.deepEqual(fetchedPages, [1]);
+});
+
+test("widget pagination continues to the latest loss when streak is needed", async () => {
+  const pages = paginationPages();
+  const fetchedPages = [];
+  const result = await fetchDraftoutWidgetPages("Feinberg", 6, {
+    needsWinStreak: true,
+    fetchPage: async (username, pageNumber) => {
+      fetchedPages.push(pageNumber);
+      return pages[pageNumber - 1];
+    },
+  });
+
+  assert.equal(result.length, 2);
+  assert.deepEqual(fetchedPages, [1, 2]);
 });
 
 test("compact and expanded widget templates render the shared rank badge", () => {
@@ -271,6 +337,10 @@ test("compact configurator defaults graph and win streak controls on", () => {
   assert.match(widgetHtml, /booleanParam\(params\.get\("showEloGraph"\), true\)/);
   assert.match(widgetHtml, /booleanParam\(params\.get\("showWinStreak"\), true\)/);
   assert.match(configHtml, /\.option-tile\s*\{[\s\S]*?user-select: none/);
+  assert.match(widgetHtml, /showWinStreak: String\(config\.showWinStreak\)/);
+  assert.match(widgetHtml, /X-Draftout-Cache/);
+  assert.match(configHtml, /debouncePreview/);
+  assert.match(configHtml, /setTimeout\(\(\) => updatePreview\(url\), 350\)/);
 });
 
 test("expanded widget keeps record values on one line", () => {
@@ -319,6 +389,46 @@ function pagesWithMatches(matches) {
       matches,
     },
   ];
+}
+
+function paginationPages() {
+  const now = Date.now();
+  const firstPage = pagesWithMatches([
+    match({
+      id: 2,
+      completedAt: new Date(now - 60 * 60 * 1000),
+      opponent: "recent-win",
+      playerWon: true,
+      playerScore: 13,
+      opponentScore: 8,
+      eloChange: 8,
+    }),
+    match({
+      id: 1,
+      completedAt: new Date(now - 9 * 60 * 60 * 1000),
+      opponent: "old-win",
+      playerWon: true,
+      playerScore: 13,
+      opponentScore: 8,
+      eloChange: 8,
+    }),
+  ])[0];
+  firstPage.totalPages = 2;
+
+  const secondPage = pagesWithMatches([
+    match({
+      id: 0,
+      completedAt: new Date(now - 10 * 60 * 60 * 1000),
+      opponent: "old-loss",
+      playerWon: false,
+      playerScore: 8,
+      opponentScore: 13,
+      eloChange: -8,
+    }),
+  ])[0];
+  secondPage.totalPages = 2;
+
+  return [firstPage, secondPage];
 }
 
 function match({

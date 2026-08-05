@@ -421,6 +421,8 @@
         showWinStreak: booleanParam(params.get("showWinStreak"), true),
       };
       let lastData = null;
+      let updateInProgress = false;
+      let staleRetryTimer = null;
 
       document.documentElement.style.setProperty("--accent", config.accent);
       document.documentElement.style.setProperty(
@@ -436,7 +438,13 @@
         setInterval(update, config.refreshSeconds * 1000);
       }
 
-      async function update() {
+      async function update(isStaleRetry = false) {
+        if (updateInProgress) {
+          return;
+        }
+
+        updateInProgress = true;
+
         try {
           const response = await fetch(widgetApiUrl(), { cache: "no-store" });
           const data = await response.json();
@@ -447,12 +455,22 @@
 
           lastData = data;
           render(data, false);
+
+          if (
+            response.headers.get("X-Draftout-Cache") === "stale" &&
+            !isStaleRetry
+          ) {
+            clearTimeout(staleRetryTimer);
+            staleRetryTimer = setTimeout(() => update(true), 2500);
+          }
         } catch (error) {
           if (lastData) {
             render(lastData, true);
           } else {
             renderError(error.message || "Draftout unavailable");
           }
+        } finally {
+          updateInProgress = false;
         }
       }
 
@@ -463,6 +481,7 @@
           gapHours: String(config.gapHours),
           refreshSeconds: String(config.refreshSeconds),
           accent: config.accent,
+          showWinStreak: String(config.showWinStreak),
         });
 
         return `/api/draftout/widget?${apiParams.toString()}`;
