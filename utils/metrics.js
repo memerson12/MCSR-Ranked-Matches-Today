@@ -128,6 +128,20 @@ const draftoutWidgetRefreshDurationSeconds = new client.Histogram({
   registers: [register],
 });
 
+const draftoutWidgetSessionActive = new client.Gauge({
+  name: "mcsr_draftout_widget_session_active",
+  help: "Whether the most recently observed Draftout widget session is active.",
+  labelNames: ["username"],
+  registers: [register],
+});
+
+const draftoutWidgetSessionLastSeenTimestampSeconds = new client.Gauge({
+  name: "mcsr_draftout_widget_session_last_seen_timestamp_seconds",
+  help: "Unix timestamp of the latest successful Draftout widget response by username.",
+  labelNames: ["username"],
+  registers: [register],
+});
+
 function routeLabelFor(req) {
   if (req.path === "/") return "/";
   if (req.path === "/api/axolotls/stats") return "/api/axolotls/stats";
@@ -406,6 +420,19 @@ export function startDraftoutWidgetRefreshTimer() {
   const endTimer = draftoutWidgetRefreshDurationSeconds.startTimer();
 
   return (status) => endTimer({ status });
+}
+
+export function recordDraftoutWidgetSessionState(
+  username,
+  hasActiveSession,
+  observedAtMs = Date.now(),
+) {
+  const labels = { username: normalizeDraftoutWidgetUsername(username) };
+  draftoutWidgetSessionActive.set(labels, hasActiveSession ? 1 : 0);
+  draftoutWidgetSessionLastSeenTimestampSeconds.set(
+    labels,
+    observedAtMs / 1000,
+  );
 }
 
 export function normalizeDraftoutWidgetUsername(username) {

@@ -6,6 +6,7 @@ import {
   instrumentDraftoutWidgetUserRequest,
   recordDraftoutWidgetCacheResult,
   recordDraftoutWidgetPagesFetched,
+  recordDraftoutWidgetSessionState,
   recordUpstreamRequest,
   startDraftoutWidgetRefreshTimer,
 } from "../utils/metrics.js";
@@ -91,6 +92,11 @@ router.get("/widget", async (req, res) => {
         .status(404)
         .json({ error: `No Draftout stats for ${username} were found` });
     }
+
+    recordDraftoutWidgetSessionState(
+      cached.value.data.username || username,
+      cached.value.data.hasActiveSession,
+    );
 
     requestContext?.setStage("response_write");
     res.status(200).json({

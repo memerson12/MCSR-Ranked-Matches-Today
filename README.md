@@ -240,6 +240,8 @@ Key app metrics include:
 - `mcsr_draftout_requests_total{channel, endpoint, status_code}`
 - `mcsr_upstream_requests_total{upstream, operation, status_code}`
 - `mcsr_upstream_request_duration_seconds{upstream, operation, status_code}`
+- `mcsr_draftout_widget_session_active{username}`
+- `mcsr_draftout_widget_session_last_seen_timestamp_seconds{username}`
 
 Draftout channel labels are parsed from Fossabot or Nightbot headers when present and fall back to `anonymous`.
 
