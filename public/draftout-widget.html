@@ -124,8 +124,8 @@
 
       .rank .rank-icon,
       .rank .rank-fallback {
-        width: 14px;
-        height: 14px;
+        width: 30px;
+        height: 30px;
       }
 
       .rank-text {
@@ -787,13 +787,14 @@
       }
 
       function getRankIconUrl(rankName) {
-        const baseRank = getBaseRankName(rankName);
+        const baseRank = rankName ? getBaseRankName(rankName) : "unranked";
         const iconUrls = {
-          coal: "https://minecraft.wiki/images/Coal_JE4_BE3.png",
-          iron: "https://minecraft.wiki/images/Iron_Ingot_JE3_BE2.png",
-          gold: "https://minecraft.wiki/images/Gold_Ingot_JE4_BE2.png",
-          amethyst: "https://minecraft.wiki/images/Amethyst_Shard_JE2_BE1.png",
-          diamond: "https://minecraft.wiki/images/Diamond_JE3_BE3.png",
+          unranked: "https://minecraft.wiki/images/Snowy_Nitwit.png",
+          silverfish: "https://minecraft.wiki/images/Silverfish_JE1_BE1.gif",
+          slime: "https://minecraft.wiki/images/Slime_JE3_BE2.png",
+          vex: "https://minecraft.wiki/images/Angry_Vex_JE3.gif",
+          evoker: "https://minecraft.wiki/images/Evoker_Summoning_Vexes.png",
+          phantom: "https://minecraft.wiki/images/Phantom_JE2.gif",
           guardian: "https://minecraft.wiki/images/Guardian_JE2_BE2.gif",
           warden: "https://minecraft.wiki/images/Warden.gif",
         };
