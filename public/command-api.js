@@ -133,8 +133,9 @@ window.CommandApiDetails = (() => {
       if (!details) return;
       const item = window.COMMAND_CATALOG.find((entry) => entry.id === details.dataset.apiDetails);
       const state = stateFor(item.id);
+      const wasOpen = state.open;
       state.open = details.open;
-      if (details.open && !state.response && !item.api.sideEffect) load(container, item);
+      if (details.open && !wasOpen && !state.response && !item.api.sideEffect) load(container, item);
     }, true);
     container.addEventListener("submit", (event) => {
       const form = event.target.closest("[data-api-form]");
