@@ -64,6 +64,23 @@
       .copy:hover { border-color: var(--accent); }
       .copy.copied { color: var(--accent); }
       .copy:disabled { color: var(--muted); cursor: not-allowed; opacity: .65; }
+      .api-details { grid-column: 1 / -1; min-width: 0; border-top: 1px solid var(--line); padding-top: 12px; }
+      .api-details summary { cursor: pointer; color: var(--accent); font-size: .85rem; font-weight: 600; }
+      .api-details summary:focus-visible, .api-fetch:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+      .api-body { padding-top: 12px; }
+      .api-endpoint { margin: 0 0 8px; overflow-wrap: anywhere; font-size: .85rem; }
+      .api-endpoint strong { color: var(--accent); margin-right: 8px; }
+      .api-note, .api-parameter p, .api-status, .api-request-label { color: var(--muted); font-size: .8rem; }
+      .api-note { margin: 0 0 12px; }
+      .api-parameters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+      .api-parameter label { text-transform: none; letter-spacing: 0; font-size: .8rem; color: var(--text); }
+      .api-parameter label span { font-size: .72rem; font-weight: 400; color: var(--muted); margin-left: 6px; }
+      .api-parameter p { margin: 5px 0 0; }
+      .api-request-label { margin: 14px 0; }
+      .api-request-label a { display: block; color: var(--accent); overflow-wrap: anywhere; }
+      .api-fetch { padding: 7px 11px; border: 1px solid var(--line); border-radius: 5px; color: var(--text); background: var(--soft); font: inherit; font-size: .85rem; cursor: pointer; }
+      .api-fetch:disabled { cursor: wait; opacity: .65; }
+      .api-response { max-height: 380px; white-space: pre; overflow-wrap: normal; }
       footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); text-align: center; font-size: .86rem; }
       @media (max-width: 840px) { header { grid-template-columns: 1fr; gap: 24px; } .setup { max-width: 560px; } }
       @media (max-width: 720px) { nav { margin-bottom: 40px; } .card { grid-template-columns: 1fr; gap: 14px; } .card-output { grid-column: auto; display: flex; } .copy { margin-top: 0; } .shell { width: calc(100% - 20px); padding-top: 18px; } }
@@ -87,7 +104,8 @@
       <section id="commands" aria-live="polite"></section>
       <footer>MCSR Stats · <a href="/">Home</a> · <a href="https://github.com/memerson12/MCSR-Ranked-Matches-Today" target="_blank" rel="noreferrer">GitHub</a> · Discord: memerson_</footer>
     </main>
-    <script src="/command-data.js?v=aa-pbs-1"></script>
+    <script src="/command-data.js?v=api-details-1"></script>
+    <script src="/command-api.js?v=api-details-1"></script>
     <script>
       const usernameInput = document.querySelector("#username");
       const container = document.querySelector("#commands");
@@ -146,6 +164,8 @@
           <p class="record-sources">Records come from the ${sources}.</p>`;
       }
 
+      window.CommandApiDetails.attach(container);
+
       function render() {
         const username = usernameInput.value.trim();
         document.querySelector("#count").textContent = `${window.COMMAND_CATALOG.length} Fossabot commands`;
@@ -172,6 +192,7 @@
                 </div>
                 <button class="copy" data-command="${item.id}">Copy command</button>
               </div>
+              ${window.CommandApiDetails.markup(item)}
             </article>`).join("");
           return `<section class="command-group" aria-labelledby="group-${group.toLowerCase()}">
             <h2 class="group-heading" id="group-${group.toLowerCase()}">${group} <span class="group-count">${items.length}</span></h2>
@@ -182,6 +203,7 @@
           container.querySelector(`[data-command-code="${item.id}"]`).textContent = commandFor(item, username);
           container.querySelector(`[data-command-example="${item.id}"]`).textContent = exampleFor(item, username);
         });
+        window.CommandApiDetails.hydrate(container, username);
       }
 
       themeButton.addEventListener("click", () => {

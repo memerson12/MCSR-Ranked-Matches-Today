@@ -9,6 +9,24 @@ It includes four main functionalities:
 3. **Draftout Match Statistics Fetching** (`draftout.js`)
 4. [**Draftout OBS Widget**](https://mcsr-stats.memerson.xyz/draftout-widget-config.html) (`public/draftout-widget.html`)
 
+## Command API explorer
+
+Every command on `/commands.html` has an **API response & parameters** dropdown.
+It documents the endpoint and supported query parameters, with editable request
+fields initialized from the Minecraft username above. Stream-stat requests use
+an editable sample uptime of 12 hours; the generated bot commands still use
+actual stream uptime.
+
+Opening a dropdown fetches the real endpoint and shows its full response,
+HTTP status, response type, and fetch time. Change parameters and use **Fetch
+response**, or **Refresh response** to reload. Error responses are displayed as
+returned by the API. JSON is pretty-printed; non-JSON bodies remain text. The
+weekly-race section fetches the external MCSR Ranked API directly.
+
+Axolotl requests record a roll, so its dropdown does not fetch automatically.
+Use **Roll and load response** to create a roll and see the returned emote name.
+Browser rolls without bot identity headers are recorded as anonymous.
+
 ## World Records Fetching
 
 The `world_records.js` script fetches world records from specified Google Sheets. It retrieves data such as the runner's name, in-game time (IGT), date, and status of the record.

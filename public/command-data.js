@@ -4,6 +4,24 @@
 window.COMMAND_CATALOG = [
   {
     id: "mcsr-today",
+    api: {
+      "endpoint": "/api/matches",
+      "parameters": [
+        {
+          "name": "username",
+          "requirement": "Required",
+          "description": "Minecraft username.",
+          "default": "{{username}}"
+        },
+        {
+          "name": "timeframe",
+          "requirement": "Optional",
+          "description": "Stream uptime, e.g. '1 hour and 5 minutes'. Without it, session counts are zero; current/overall stats are still returned.",
+          "default": "12 hours"
+        }
+      ],
+      "note": "The bot supplies stream uptime automatically. The request below uses an editable sample timeframe."
+    },
     category: "Ranked",
     name: "Stream stats",
     trigger: "!today",
@@ -17,6 +35,11 @@ window.COMMAND_CATALOG = [
   },
   {
     id: "mcsr-weekly-race",
+    api: {
+      "endpoint": "https://mcsrranked.com/api/weekly-race/",
+      "parameters": [],
+      "note": "This command reads the public MCSR Ranked weekly-race API directly. The Minecraft username is used by the command’s formatting script, not sent as an API parameter."
+    },
     category: "Ranked",
     name: "Weekly race",
     trigger: "!weekly",
@@ -30,6 +53,29 @@ window.COMMAND_CATALOG = [
   },
   {
     id: "aa-today",
+    api: {
+      "endpoint": "/api/aa/stats",
+      "parameters": [
+        {
+          "name": "username",
+          "requirement": "Username or UUID",
+          "description": "Minecraft username.",
+          "default": "{{username}}"
+        },
+        {
+          "name": "uuid",
+          "requirement": "Username or UUID",
+          "description": "Minecraft UUID, compact or hyphenated. When provided, it takes precedence over username."
+        },
+        {
+          "name": "timeframe",
+          "requirement": "Optional",
+          "description": "Stream uptime, e.g. '1 hour and 5 minutes'. Defaults to the last 24 hours when omitted.",
+          "default": "12 hours"
+        }
+      ],
+      "note": "Times are in-game milliseconds; formatted times use m:ss or None. The session window uses Paceman run update timestamps. The bot supplies stream uptime automatically."
+    },
     category: "AA",
     name: "Stream stats",
     trigger: "!today",
@@ -42,6 +88,23 @@ window.COMMAND_CATALOG = [
   },
   {
     id: "aa-pbs",
+    api: {
+      "endpoint": "/api/aa/pbs",
+      "parameters": [
+        {
+          "name": "username",
+          "requirement": "Username or UUID",
+          "description": "Minecraft username.",
+          "default": "{{username}}"
+        },
+        {
+          "name": "uuid",
+          "requirement": "Username or UUID",
+          "description": "Minecraft UUID, compact or hyphenated. When provided, it takes precedence over username."
+        }
+      ],
+      "note": "Lifetime PBs from recorded AA history, cached for five minutes. timeframe is not supported. Missing PBs are null / None; completion times can use h:mm:ss."
+    },
     category: "AA",
     name: "Personal bests",
     trigger: "!pb",
@@ -54,6 +117,24 @@ window.COMMAND_CATALOG = [
   },
   {
     id: "draftout-today",
+    api: {
+      "endpoint": "/api/draftout",
+      "parameters": [
+        {
+          "name": "username",
+          "requirement": "Required",
+          "description": "Draftout username.",
+          "default": "{{username}}"
+        },
+        {
+          "name": "timeframe",
+          "requirement": "Optional",
+          "description": "Stream uptime, e.g. '1 hour and 5 minutes'. Without it, session counts are zero; current/overall stats are still returned.",
+          "default": "12 hours"
+        }
+      ],
+      "note": "The bot supplies stream uptime automatically. Without timeframe, session match counts are zero."
+    },
     category: "Draftout",
     name: "Stream stats",
     trigger: "!today",
@@ -67,6 +148,17 @@ window.COMMAND_CATALOG = [
   },
   {
     id: "draftout-winstreak",
+    api: {
+      "endpoint": "/api/draftout/winstreak",
+      "parameters": [
+        {
+          "name": "username",
+          "requirement": "Required",
+          "description": "Draftout username.",
+          "default": "{{username}}"
+        }
+      ]
+    },
     category: "Draftout",
     name: "Winstreak",
     trigger: "!ws",
@@ -79,6 +171,17 @@ window.COMMAND_CATALOG = [
   },
   {
     id: "draftout-leaderboard",
+    api: {
+      "endpoint": "/api/draftout/leaderboard",
+      "parameters": [
+        {
+          "name": "top",
+          "requirement": "Optional",
+          "description": "Positive integer. Omit to return the full leaderboard; the chat command uses 3.",
+          "default": "3"
+        }
+      ]
+    },
     category: "Draftout",
     name: "Leaderboard",
     trigger: "!lb",
@@ -92,6 +195,11 @@ window.COMMAND_CATALOG = [
   },
   {
     id: "world-records",
+    api: {
+      "endpoint": "/api/world_records",
+      "parameters": [],
+      "note": "Always returns all record categories. The checkboxes above only change which records appear in the chat command."
+    },
     category: "Misc",
     name: "World records",
     trigger: "!wr",
@@ -144,6 +252,12 @@ window.COMMAND_CATALOG = [
   },
   {
     id: "axolotl",
+    api: {
+      "endpoint": "/api/axolotls",
+      "parameters": [],
+      "sideEffect": true,
+      "note": "Returns plain text, not JSON. Every request records one roll. Bot headers identify the user/channel: x-fossabot-message-userlogin and x-fossabot-channellogin, or Nightbot-User (displayName) and Nightbot-Channel (name). Browser requests without those headers are recorded as anonymous."
+    },
     category: "Misc",
     name: "Axolotl roll",
     trigger: "!axolotl",
