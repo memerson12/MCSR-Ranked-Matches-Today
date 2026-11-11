@@ -112,12 +112,24 @@ Without `timeframe`, the endpoint uses the last 24 hours.
   "startTime": "2026-11-09T18:55:00.000Z",
   "nethers": 20,
   "elytras": 4,
-  "finished": 1
+  "finished": 1,
+  "fastestElytraTime": 876884,
+  "latestElytraTime": 937386,
+  "fastestElytraTimeFormatted": "14:36",
+  "latestElytraTimeFormatted": "15:37"
 }
 ```
 
+`fastestElytraTime` and `latestElytraTime` are elapsed in-game milliseconds
+from run start to obtaining elytra, restricted to the same timeframe as the counts.
+Fastest is the lowest positive elytra split; latest is the split from the newest
+eligible run by Paceman run ID. Both are `null` if no eligible run reached elytra.
+Their `...Formatted` counterparts return `m:ss` (whole seconds, rounded down),
+or `"None"` when no time is available. Minutes can exceed 59.
+
 The **AA** section of `/commands.html` generates a Fossabot `!today` command
-using stream uptime, with output such as `Nethers: 20 - Elytras: 4 - Finished: 1`.
+using stream uptime, with output such as
+`Nethers: 20 - Elytras: 4 - Finished: 1 - Fastest Elytra: 14:36 - Latest Elytra: 15:37`.
 Finished runs require a positive `finish` split; reaching credits alone does not count.
 
 The route follows Paceman's cursor pagination until it reaches older history.
@@ -132,6 +144,61 @@ Invalid inputs and offline uptime return `400`, unknown Minecraft names return
 `404`, and upstream failures or pagination limits return `502` rather than
 partial counts. Requests have a 15-second upstream deadline and at most 20 pages
 of 100 runs.
+
+## All Advancements personal bests
+
+`GET /api/aa/pbs?username=Feinberg` returns lifetime PBs from Paceman's tracked AA
+history. As with `/api/aa/stats`, you can use a compact or hyphenated Minecraft
+`uuid` instead of `username`. This endpoint does not accept `timeframe`.
+
+Example response (illustrative values):
+
+```json
+{
+  "username": "Feinberg",
+  "uuid": "9a8e24df-4c85-49d6-96a6-951da84fa5c4",
+  "timeframe": "lifetime",
+  "fastestNetherTime": 150000,
+  "fastestNetherTimeFormatted": "2:30",
+  "fastestBastionTime": 250000,
+  "fastestBastionTimeFormatted": "4:10",
+  "fastestFortressTime": 400000,
+  "fastestFortressTimeFormatted": "6:40",
+  "fastestStrongholdTime": 550000,
+  "fastestStrongholdTimeFormatted": "9:10",
+  "fastestEndTime": 484000,
+  "fastestEndTimeFormatted": "8:04",
+  "fastestElytraTime": 736627,
+  "fastestElytraTimeFormatted": "12:16",
+  "fastestEndExitTime": 1194000,
+  "fastestEndExitTimeFormatted": "19:54",
+  "fastestCompletionTime": 7548806,
+  "fastestCompletionTimeFormatted": "2:05:48"
+}
+```
+
+The **AA** section of `/commands.html` also generates a Fossabot `!pb` command
+showing all eight formatted split PBs, with `None` for unreached splits.
+
+Each PB is the lowest positive in-game split in milliseconds across eligible
+runs, measured from run start; different PBs can come from different runs.
+`fastestEndExitTime` uses Paceman's `credits` split and `fastestCompletionTime`
+uses `finish`. Every time has a `...Formatted` field, using `m:ss` below one
+hour and `h:mm:ss` above it, rounded down to whole seconds. Missing PBs return
+`null` with formatted `"None"`.
+
+Eligibility follows [Paceman's AA leaderboard code](https://github.com/PaceMan-MCSR/pacestats/blob/main/app/data.ts):
+exclude runs with a nether split below two minutes and no End entry, and runs
+with an End exit but no elytra. These PBs cover Paceman's recorded history,
+which may not include every run a player has ever played.
+
+The route follows all cursor pages, bounded at 100 pages of 100 runs and a
+15-second request deadline. If the full history cannot be read, it returns
+`502` rather than claiming partial-history PBs are lifetime records. Successful
+results are cached per UUID for five minutes in a bounded 500-player cache;
+concurrent requests for the same UUID share one history fetch. Invalid inputs
+return `400`; unknown Minecraft usernames return `404`. A known Minecraft
+player with no recorded AA history gets all-null PBs.
 
 ## Draftout Match Statistics Fetching
 

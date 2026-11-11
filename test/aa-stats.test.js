@@ -22,10 +22,49 @@ test("AA stats follows cursors, deduplicates runs, and includes the window bound
     now,
     fetchImpl: async (url) => { urls.push(new URL(url)); return response(pages.shift()); },
   });
-  assert.deepEqual(stats, { nethers: 2, elytras: 1, finished: 0 });
+  assert.deepEqual(stats, { nethers: 2, elytras: 1, finished: 0, fastestElytraTime: 900000, latestElytraTime: 900000, fastestElytraTimeFormatted: "15:00", latestElytraTimeFormatted: "15:00" });
   assert.equal(urls.length, 2);
   assert.equal(urls[0].searchParams.get("limit"), "100");
   assert.equal(urls[1].searchParams.get("beforeId"), "4");
+});
+
+test("AA elytra times include eligible runs across pages and use the newest run ID for latest", async () => {
+  const pages = [
+    { rows: [run(10, 1), run(9, 20, { elytra: 1100000 }), run(8, 5, { elytra: 1000000 })], nextCursor: 8, hasMore: true },
+    { rows: [run(8, 5, { elytra: 1000000 }), run(7, 60, { elytra: 800000 }), run(6, 61, { elytra: 700000 })], hasMore: false },
+  ];
+  const stats = await fetchAAStats(uuid, start, {
+    now, fetchImpl: async () => response(pages.shift()),
+  });
+  assert.equal(stats.elytras, 3);
+  assert.equal(stats.fastestElytraTime, 800000);
+  assert.equal(stats.latestElytraTime, 1100000);
+  assert.equal(stats.fastestElytraTimeFormatted, "13:20");
+  assert.equal(stats.latestElytraTimeFormatted, "18:20");
+});
+
+test("AA elytra times remain null when no eligible run has a valid split", async () => {
+  const rows = [run(7, 1), run(6, 2, { elytra: 0 }), run(5, 3, { elytra: -1 }),
+    run(4, 4, { elytra: "800000" }), run(3, 5, { elytra: Infinity }),
+    run(2, 61, { elytra: 800000 }), run(1, -1, { elytra: 900000 })];
+  const stats = await fetchAAStats(uuid, start, {
+    now, fetchImpl: async () => response({ rows, hasMore: false }),
+  });
+  assert.equal(stats.elytras, 0);
+  assert.equal(stats.fastestElytraTime, null);
+  assert.equal(stats.latestElytraTime, null);
+  assert.equal(stats.fastestElytraTimeFormatted, "None");
+  assert.equal(stats.latestElytraTimeFormatted, "None");
+});
+
+test("AA formatted elytra times truncate milliseconds and pad seconds", async () => {
+  const rows = [run(2, 1, { elytra: 3665999 }), run(1, 2, { elytra: 912999 })];
+  const stats = await fetchAAStats(uuid, start, {
+    now, fetchImpl: async () => response({ rows, hasMore: false }),
+  });
+  assert.equal(stats.fastestElytraTime, 912999);
+  assert.equal(stats.fastestElytraTimeFormatted, "15:12");
+  assert.equal(stats.latestElytraTimeFormatted, "61:05");
 });
 
 test("AA finished counts only positive finish splits inside the stream window", async () => {
@@ -48,7 +87,7 @@ test("AA finished counts only positive finish splits inside the stream window", 
 test("AA stats returns zero for no runs and rejects failed or stalled upstream pages", async () => {
   assert.deepEqual(await fetchAAStats(uuid, start, {
     fetchImpl: async () => response({ rows: [], hasMore: false }),
-  }), { nethers: 0, elytras: 0, finished: 0 });
+  }), { nethers: 0, elytras: 0, finished: 0, fastestElytraTime: null, latestElytraTime: null, fastestElytraTimeFormatted: "None", latestElytraTimeFormatted: "None" });
   for (const data of [{}, { rows: [], hasMore: true, nextCursor: 4 }]) {
     await assert.rejects(fetchAAStats(uuid, start, { fetchImpl: async () => response(data) }));
   }
@@ -87,6 +126,10 @@ test("AA route validates input, resolves Mojang profiles, supports UUIDs, and ha
   assert.equal(result.data.startTime, start.toISOString());
   assert.equal(result.data.elytras, 1);
   assert.equal(result.data.finished, 1);
+  assert.equal(result.data.fastestElytraTime, 500);
+  assert.equal(result.data.latestElytraTime, 500);
+  assert.equal(result.data.fastestElytraTimeFormatted, "0:00");
+  assert.equal(result.data.latestElytraTimeFormatted, "0:00");
   assert.equal(calls.length, 2);
   assert.equal(new URL(calls[1]).searchParams.get("uuid"), uuid);
   calls = [];

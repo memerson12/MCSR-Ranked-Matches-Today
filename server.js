@@ -10,6 +10,7 @@ import axolotlsRouter from "./routes/axolotls.js";
 import worldRecordsRouter from "./routes/world_records.js";
 import draftoutRouter from "./routes/draftout.js";
 import aaStatsRouter from "./routes/aaStats.js";
+import aaPbsRouter from "./routes/aaPbs.js";
 import { trace } from "@opentelemetry/api";
 import { metricsHttpHandler, metricsMiddleware } from "./utils/metrics.js";
 import {
@@ -51,6 +52,7 @@ app.use((req, res, next) => {
 
 app.use("/api/matches", matchesRouter);
 app.use("/api/aa/stats", aaStatsRouter);
+app.use("/api/aa/pbs", aaPbsRouter);
 app.use("/api/axolotls", axolotlsRouter);
 app.use("/api/world_records", worldRecordsRouter);
 app.use("/api/draftout", draftoutRouter);
