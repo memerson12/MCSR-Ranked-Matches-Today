@@ -11,10 +11,13 @@ It includes four main functionalities:
 
 ## Command API explorer
 
-Both AA commands have **Stats to show** checkboxes. All fields start enabled;
-selections independently update each command and its example output. At least
+Both AA commands have **Stats to show** checkboxes. Stream stats start with all fields enabled; PBs default to Elytra and Completion.
+Selections independently update each command and its example output. At least
 one field must be selected to copy an AA command. These selections affect chat
 formatting only; the API explorer still displays the full response.
+
+Category headings are shareable links, such as `/commands.html#aa`,
+`/commands.html#ranked`, `/commands.html#draftout`, and `/commands.html#misc`.
 
 Every command on `/commands.html` has an **API response & parameters** dropdown.
 It documents the endpoint and supported query parameters, with editable request
@@ -152,7 +155,7 @@ or `"None"` when no time is available. Minutes can exceed 59.
 
 The **AA** section of `/commands.html` generates a Fossabot `!today` command
 using stream uptime, with output such as
-`Nethers: 20 - Elytras: 4 - Finished: 1 - Fastest Elytra: 14:36 - Latest Elytra: 15:37`.
+`Nethers: 20 | Elytras: 4 | Finished: 1 | Fastest Elytra: 14:36 | Latest Elytra: 15:37`.
 Finished runs require a positive `finish` split; reaching credits alone does not count.
 
 The route follows Paceman's cursor pagination until it reaches older history.
@@ -201,7 +204,8 @@ Example response (illustrative values):
 ```
 
 The **AA** section of `/commands.html` also generates a Fossabot `!pb` command
-showing all eight formatted split PBs, with `None` for unreached splits.
+with selectable formatted split PBs, defaulting to Elytra and Completion,
+and `None` for unreached splits.
 
 Each PB is the lowest positive in-game split in milliseconds across eligible
 runs, measured from run start; different PBs can come from different runs.

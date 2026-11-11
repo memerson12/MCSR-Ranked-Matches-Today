@@ -81,7 +81,7 @@ window.COMMAND_CATALOG = [
     trigger: "!today",
     description: "AA nether entries, elytras, finished runs, and fastest/latest elytra times since stream start.",
     outputPrefix: "",
-    outputSeparator: " - ",
+    outputSeparator: " | ",
     parts: [
       {
         "key": "nethers",
@@ -145,31 +145,31 @@ window.COMMAND_CATALOG = [
         "key": "fastestNetherTimeFormatted",
         "label": "Nether",
         "sample": "1:39",
-        "default": true
+        "default": false
       },
       {
         "key": "fastestBastionTimeFormatted",
         "label": "Bastion",
         "sample": "2:21",
-        "default": true
+        "default": false
       },
       {
         "key": "fastestFortressTimeFormatted",
         "label": "Fortress",
         "sample": "2:20",
-        "default": true
+        "default": false
       },
       {
         "key": "fastestStrongholdTimeFormatted",
         "label": "Stronghold",
         "sample": "7:42",
-        "default": true
+        "default": false
       },
       {
         "key": "fastestEndTimeFormatted",
         "label": "End",
         "sample": "8:04",
-        "default": true
+        "default": false
       },
       {
         "key": "fastestElytraTimeFormatted",
@@ -181,7 +181,7 @@ window.COMMAND_CATALOG = [
         "key": "fastestEndExitTimeFormatted",
         "label": "End Exit",
         "sample": "19:54",
-        "default": true
+        "default": false
       },
       {
         "key": "fastestCompletionTimeFormatted",
