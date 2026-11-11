@@ -29,6 +29,18 @@ window.COMMAND_CATALOG = [
     },
   },
   {
+    id: "aa-today",
+    category: "AA",
+    name: "Stream stats",
+    trigger: "!today",
+    description: "AA nether entries, elytras, and finished runs since stream start.",
+    example: "Nethers: 20 - Elytras: 4 - Finished: 1",
+    commands: {
+      fossabot:
+        "$(eval r=$(customapi https://mcsr-stats.memerson.xyz/api/aa/stats?timeframe=$(urlencode $(uptime))&username={{username}}); r['error'] ? `${r['error']}` : `Nethers: ${r['nethers']} - Elytras: ${r['elytras']} - Finished: ${r['finished']}`)",
+    },
+  },
+  {
     id: "draftout-today",
     category: "Draftout",
     name: "Stream stats",

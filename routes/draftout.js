@@ -1,4 +1,5 @@
 import express from "express";
+import { parseUptime } from "../utils/uptime.js";
 import fetch from "node-fetch";
 import {
   getRequestContext,
@@ -892,32 +893,6 @@ function getSafeTotalPages(totalPages) {
   return Math.min(numericTotalPages, MAX_DRAFTOUT_PAGES);
 }
 
-export function parseUptime(timeframe, now = new Date()) {
-  const timeComponents = timeframe.match(/(\d+)\s*(hour|minute|second)s?/g);
-  if (!timeComponents) return null;
-
-  let totalMinutes = 0;
-  let totalSeconds = 0;
-
-  timeComponents.forEach((component) => {
-    const [value, unit] = component.split(/\s+/);
-    const intValue = parseInt(value);
-
-    if (unit.startsWith("hour")) {
-      totalMinutes += intValue * 60;
-    } else if (unit.startsWith("minute")) {
-      totalMinutes += intValue;
-    } else if (unit.startsWith("second")) {
-      totalSeconds += intValue;
-    }
-  });
-
-  totalMinutes += Math.floor(totalSeconds / 60);
-  totalSeconds = totalSeconds % 60;
-
-  return new Date(now.getTime() - (totalMinutes * 60 + totalSeconds) * 1000);
-}
-
 export function isPositiveInteger(value) {
   return /^\d+$/.test(value) && Number(value) > 0;
 }
@@ -967,4 +942,5 @@ function instrumentDraftoutWidgetUserRequestIfPresent(requestContext, options) {
   instrumentDraftoutWidgetUserRequest(requestContext, options);
 }
 
+export { parseUptime };
 export default router;

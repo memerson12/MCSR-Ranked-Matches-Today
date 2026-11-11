@@ -1,4 +1,5 @@
 import express from "express";
+import { parseUptime } from "../utils/uptime.js";
 import fetch from "node-fetch";
 import {
   getRequestContext,
@@ -188,35 +189,6 @@ function parsePlaytime(playtime) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   return `${hours} hours and ${minutes} minutes`;
-}
-
-function parseUptime(timeframe) {
-  const timeComponents = timeframe.match(/(\d+)\s*(hour|minute|second)s?/g);
-  if (!timeComponents) return null;
-
-  let totalMinutes = 0;
-  let totalSeconds = 0;
-
-  timeComponents.forEach((component) => {
-    const [value, unit] = component.split(/\s+/);
-    const intValue = parseInt(value);
-
-    if (unit.startsWith("hour")) {
-      totalMinutes += intValue * 60;
-    } else if (unit.startsWith("minute")) {
-      totalMinutes += intValue;
-    } else if (unit.startsWith("second")) {
-      totalSeconds += intValue;
-    }
-  });
-
-  totalMinutes += Math.floor(totalSeconds / 60);
-  totalSeconds = totalSeconds % 60;
-
-  const currentTime = new Date();
-  return new Date(
-    currentTime.getTime() - (totalMinutes * 60 + totalSeconds) * 1000
-  );
 }
 
 async function fetchUserData(username, options = {}) {

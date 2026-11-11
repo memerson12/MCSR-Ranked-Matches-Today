@@ -97,6 +97,42 @@ The response will be a JSON object containing the match statistics.
 }
 ```
 
+## All Advancements stream stats
+
+`GET /api/aa/stats?username=Feinberg&timeframe=1%20hour%20and%205%20minutes`
+returns AA nether-entry, elytra, and finished-run counts from Paceman. You can supply `uuid`
+instead of `username`; compact and hyphenated Minecraft UUIDs are supported.
+Without `timeframe`, the endpoint uses the last 24 hours.
+
+```json
+{
+  "username": "Feinberg",
+  "uuid": "9a8e24df-4c85-49d6-96a6-951da84fa5c4",
+  "timeframe": "1 hour and 5 minutes",
+  "startTime": "2026-11-09T18:55:00.000Z",
+  "nethers": 20,
+  "elytras": 4,
+  "finished": 1
+}
+```
+
+The **AA** section of `/commands.html` generates a Fossabot `!today` command
+using stream uptime, with output such as `Nethers: 20 - Elytras: 4 - Finished: 1`.
+Finished runs require a positive `finish` split; reaching credits alone does not count.
+
+The route follows Paceman's cursor pagination until it reaches older history.
+Counts use each run's `lastUpdated` timestamp, the only wall-clock timestamp
+provided by the AA history endpoint. These are counts of tracked runs with each
+split, rather than exact timestamps of split events; a run updated during the
+stream can include splits reached before stream start.
+
+Paceman does not expose AA overworld reset totals. Its ResetTracker submission
+endpoint accepts only Any% runs, so the command omits resets.
+Invalid inputs and offline uptime return `400`, unknown Minecraft names return
+`404`, and upstream failures or pagination limits return `502` rather than
+partial counts. Requests have a 15-second upstream deadline and at most 20 pages
+of 100 runs.
+
 ## Draftout Match Statistics Fetching
 
 The `draftout.js` route fetches the Draftout stats API and returns competitive match statistics for a given user over a Twitch uptime timeframe.
