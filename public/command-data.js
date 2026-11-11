@@ -80,11 +80,40 @@ window.COMMAND_CATALOG = [
     name: "Stream stats",
     trigger: "!today",
     description: "AA nether entries, elytras, finished runs, and fastest/latest elytra times since stream start.",
-    example: "Nethers: 20 - Elytras: 4 - Finished: 1 - Fastest Elytra: 14:36 - Latest Elytra: 15:37",
-    commands: {
-      fossabot:
-        "$(eval r=$(customapi https://mcsr-stats.memerson.xyz/api/aa/stats?timeframe=$(urlencode $(uptime))&username={{username}}); r['error'] ? `${r['error']}` : `Nethers: ${r['nethers']} - Elytras: ${r['elytras']} - Finished: ${r['finished']} - Fastest Elytra: ${r['fastestElytraTimeFormatted']} - Latest Elytra: ${r['latestElytraTimeFormatted']}`)",
-    },
+    outputPrefix: "",
+    outputSeparator: " - ",
+    parts: [
+      {
+        "key": "nethers",
+        "label": "Nethers",
+        "sample": "20",
+        "default": true
+      },
+      {
+        "key": "elytras",
+        "label": "Elytras",
+        "sample": "4",
+        "default": true
+      },
+      {
+        "key": "finished",
+        "label": "Finished",
+        "sample": "1",
+        "default": true
+      },
+      {
+        "key": "fastestElytraTimeFormatted",
+        "label": "Fastest Elytra",
+        "sample": "14:36",
+        "default": true
+      },
+      {
+        "key": "latestElytraTimeFormatted",
+        "label": "Latest Elytra",
+        "sample": "15:37",
+        "default": true
+      }
+    ],
   },
   {
     id: "aa-pbs",
@@ -109,11 +138,58 @@ window.COMMAND_CATALOG = [
     name: "Personal bests",
     trigger: "!pb",
     description: "Lifetime AA personal bests for each split tracked by Paceman. Unreached splits show None.",
-    example: "AA PBs - Nether: 1:39 | Bastion: 2:21 | Fortress: 2:20 | Stronghold: 7:42 | End: 8:04 | Elytra: 12:16 | End Exit: 19:54 | Completion: 2:05:48",
-    commands: {
-      fossabot:
-        "$(eval r=$(customapi https://mcsr-stats.memerson.xyz/api/aa/pbs?username={{username}}); r['error'] ? `${r['error']}` : `AA PBs - Nether: ${r['fastestNetherTimeFormatted']} | Bastion: ${r['fastestBastionTimeFormatted']} | Fortress: ${r['fastestFortressTimeFormatted']} | Stronghold: ${r['fastestStrongholdTimeFormatted']} | End: ${r['fastestEndTimeFormatted']} | Elytra: ${r['fastestElytraTimeFormatted']} | End Exit: ${r['fastestEndExitTimeFormatted']} | Completion: ${r['fastestCompletionTimeFormatted']}`)",
-    },
+    outputPrefix: "AA PBs - ",
+    outputSeparator: " | ",
+    parts: [
+      {
+        "key": "fastestNetherTimeFormatted",
+        "label": "Nether",
+        "sample": "1:39",
+        "default": true
+      },
+      {
+        "key": "fastestBastionTimeFormatted",
+        "label": "Bastion",
+        "sample": "2:21",
+        "default": true
+      },
+      {
+        "key": "fastestFortressTimeFormatted",
+        "label": "Fortress",
+        "sample": "2:20",
+        "default": true
+      },
+      {
+        "key": "fastestStrongholdTimeFormatted",
+        "label": "Stronghold",
+        "sample": "7:42",
+        "default": true
+      },
+      {
+        "key": "fastestEndTimeFormatted",
+        "label": "End",
+        "sample": "8:04",
+        "default": true
+      },
+      {
+        "key": "fastestElytraTimeFormatted",
+        "label": "Elytra",
+        "sample": "12:16",
+        "default": true
+      },
+      {
+        "key": "fastestEndExitTimeFormatted",
+        "label": "End Exit",
+        "sample": "19:54",
+        "default": true
+      },
+      {
+        "key": "fastestCompletionTimeFormatted",
+        "label": "Completion",
+        "sample": "2:05:48",
+        "default": true
+      }
+    ],
   },
   {
     id: "draftout-today",

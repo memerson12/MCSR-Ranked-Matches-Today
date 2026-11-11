@@ -11,6 +11,11 @@ It includes four main functionalities:
 
 ## Command API explorer
 
+Both AA commands have **Stats to show** checkboxes. All fields start enabled;
+selections independently update each command and its example output. At least
+one field must be selected to copy an AA command. These selections affect chat
+formatting only; the API explorer still displays the full response.
+
 Every command on `/commands.html` has an **API response & parameters** dropdown.
 It documents the endpoint and supported query parameters, with editable request
 fields initialized from the Minecraft username above. Stream-stat requests use

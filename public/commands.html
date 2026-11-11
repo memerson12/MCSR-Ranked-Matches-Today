@@ -104,7 +104,7 @@
       <section id="commands" aria-live="polite"></section>
       <footer>MCSR Stats · <a href="/">Home</a> · <a href="https://github.com/memerson12/MCSR-Ranked-Matches-Today" target="_blank" rel="noreferrer">GitHub</a> · Discord: memerson_</footer>
     </main>
-    <script src="/command-data.js?v=api-details-1"></script>
+    <script src="/command-data.js?v=aa-options-1"></script>
     <script src="/command-api.js?v=api-details-2"></script>
     <script>
       const usernameInput = document.querySelector("#username");
@@ -117,6 +117,14 @@
           (item.records || []).filter((record) => record.default).map((record) => record.id)
         )
       );
+
+      const selectedParts = new Map(window.COMMAND_CATALOG.filter((item) => item.parts).map((item) => [
+        item.id, new Set(item.parts.filter((part) => part.default).map((part) => part.key)),
+      ]));
+
+      function selectedPartsFor(item) {
+        return item.parts.filter((part) => selectedParts.get(item.id).has(part.key));
+      }
 
       const savedTheme = localStorage.getItem("theme");
       const initialTheme = savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -133,6 +141,17 @@
       }
 
       function commandFor(item, username) {
+        if (item.parts) {
+          const parts = selectedPartsFor(item);
+          if (!parts.length) return "$(eval `Select at least one stat`)";
+          const endpoint = `https://mcsr-stats.memerson.xyz${item.api.endpoint}`;
+          const timeframe = item.api.parameters.some((parameter) => parameter.name === "timeframe")
+            ? "timeframe=$(urlencode $(uptime))&" : "";
+          const output = item.outputPrefix + parts.map((part) =>
+            `${part.label}: \${r['${part.key}']}`
+          ).join(item.outputSeparator);
+          return `$(eval r=$(customapi ${endpoint}?${timeframe}username=${username}); r['error'] ? \`\${r['error']}\` : \`${output}\`)`;
+        }
         if (item.records) {
           const records = selectedRecordsFor(item);
           if (!records.length) return "$(eval `Select at least one world record`)";
@@ -145,6 +164,12 @@
       }
 
       function exampleFor(item, username) {
+        if (item.parts) {
+          const parts = selectedPartsFor(item);
+          return parts.length
+            ? item.outputPrefix + parts.map((part) => `${part.label}: ${part.sample}`).join(item.outputSeparator)
+            : "Select at least one stat";
+        }
         if (item.records) {
           const records = selectedRecordsFor(item);
           return records.length
@@ -155,6 +180,12 @@
       }
 
       function optionsFor(item) {
+        if (item.parts) {
+          const options = item.parts.map((part) => `<label class="record-option">
+            <input type="checkbox" data-part="${part.key}" data-command-id="${item.id}" ${selectedParts.get(item.id).has(part.key) ? "checked" : ""} /> ${part.label}
+          </label>`).join("");
+          return `<fieldset class="record-options"><legend>Stats to show</legend>${options}</fieldset>`;
+        }
         if (!item.records) return "";
         const options = item.records.map((record) => `<label class="record-option">
           <input type="checkbox" data-record="${record.id}" ${selectedRecords.has(record.id) ? "checked" : ""} /> ${record.label}
@@ -202,6 +233,9 @@
         window.COMMAND_CATALOG.forEach((item) => {
           container.querySelector(`[data-command-code="${item.id}"]`).textContent = commandFor(item, username);
           container.querySelector(`[data-command-example="${item.id}"]`).textContent = exampleFor(item, username);
+          if (item.parts) {
+            container.querySelector(`[data-command="${item.id}"]`).disabled = selectedPartsFor(item).length === 0;
+          }
         });
         window.CommandApiDetails.hydrate(container, username);
       }
@@ -215,6 +249,15 @@
 
       usernameInput.addEventListener("input", render);
       container.addEventListener("change", (event) => {
+        const partCheckbox = event.target.closest("[data-part]");
+        if (partCheckbox) {
+          const selected = selectedParts.get(partCheckbox.dataset.commandId);
+          if (partCheckbox.checked) selected.add(partCheckbox.dataset.part);
+          else selected.delete(partCheckbox.dataset.part);
+          render();
+          container.querySelector(`[data-command-id="${partCheckbox.dataset.commandId}"][data-part="${partCheckbox.dataset.part}"]`).focus();
+          return;
+        }
         const checkbox = event.target.closest("[data-record]");
         if (!checkbox) return;
         if (checkbox.checked) selectedRecords.add(checkbox.dataset.record);
